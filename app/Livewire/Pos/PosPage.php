@@ -1054,10 +1054,11 @@ class PosPage extends Component
     public function openCheckout(): void
     {
         $this->resetValidation();
-        $this->cashReceived = null;
+        $this->cashReceived = $this->paymentMethod === 'cash' ? (string) $this->total : null;
         $this->cashChange = 0;
         $this->checkoutStep = 3;
         $this->checkoutModalOpen = true;
+        $this->updatedCashReceived();
     }
 
     public function nextStep(): void

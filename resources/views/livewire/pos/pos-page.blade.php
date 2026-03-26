@@ -1009,29 +1009,16 @@
                                             </div>
                                         </div>
 
-                                        <div class="flex items-center justify-between">
-                                            <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Pembayaran</p>
-                                            <div class="w-32">
-                                                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Pajak PB1 (%)</label>
-                                                <div class="relative">
-                                                    <input wire:model.live="taxRate" type="number" min="0" max="100" step="0.01" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pl-7 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
-                                                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                                        <span class="text-gray-500 dark:text-gray-400">%</span>
-                                                    </div>
-                                                </div>
-                                                <x-common.input-error for="taxRate" />
-                                            </div>
-                                        </div>
-                                        <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div class="sm:col-span-2">
                                                 <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Metode Bayar</label>
-                                                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                                <div class="grid grid-cols-3 gap-3">
                                                     @foreach ($paymentMethods as $pm)
                                                         @continue(in_array($pm['id'], ['gofood', 'grab_food', 'shopee_food'], true))
                                                         <button 
                                                             type="button"
                                                             wire:click="$set('paymentMethod', '{{ $pm['id'] }}')"
-                                                            class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition-all duration-200 hover:shadow-md
+                                                            class="flex min-h-[92px] flex-col items-center justify-center rounded-xl border p-3 text-center transition-all duration-200 hover:shadow-md
                                                             {{ $paymentMethod === $pm['id'] 
                                                                 ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-500/20 dark:border-brand-400 dark:bg-brand-900/20 dark:text-brand-300' 
                                                                 : 'border-gray-200 bg-white text-gray-600 hover:border-brand-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-800' 
@@ -1076,8 +1063,19 @@
                                                         />
                                                     </div>
                                                     <x-common.input-error for="cashReceived" />
-                                                    
-                                                    <!-- Quick Amount Suggestions -->
+                                                    <div class="mt-3 rounded-xl bg-gray-100 p-4 dark:bg-gray-800">
+                                                        <div class="flex justify-between items-center">
+                                                            <span class="text-sm text-gray-600 dark:text-gray-400">Total Tagihan</span>
+                                                            <span class="text-sm font-semibold text-gray-900 dark:text-white">Rp {{ number_format($total, 0, ',', '.') }}</span>
+                                                        </div>
+                                                        <div class="mt-2 flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                            <span class="text-base font-medium text-gray-800 dark:text-white/90">Kembalian</span>
+                                                            <span class="text-xl font-bold {{ $cashChange >= 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400' }}">
+                                                                Rp {{ number_format((int) $cashChange, 0, ',', '.') }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
                                                     <div class="mt-3 flex flex-wrap gap-2">
                                                         @foreach([20000, 50000, 100000, 200000] as $amt)
                                                             @if($amt >= $total)
@@ -1097,19 +1095,6 @@
                                                         >
                                                             Uang Pas
                                                         </button>
-                                                    </div>
-
-                                                    <div class="mt-4 rounded-xl bg-gray-100 p-4 dark:bg-gray-800">
-                                                        <div class="flex justify-between items-center">
-                                                            <span class="text-sm text-gray-600 dark:text-gray-400">Total Tagihan</span>
-                                                            <span class="text-sm font-semibold text-gray-900 dark:text-white">Rp {{ number_format($total, 0, ',', '.') }}</span>
-                                                        </div>
-                                                        <div class="mt-2 flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
-                                                            <span class="text-base font-medium text-gray-800 dark:text-white/90">Kembalian</span>
-                                                            <span class="text-xl font-bold {{ $cashChange >= 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400' }}">
-                                                                Rp {{ number_format((int) $cashChange, 0, ',', '.') }}
-                                                            </span>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             @endif

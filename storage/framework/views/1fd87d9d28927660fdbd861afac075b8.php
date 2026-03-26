@@ -1234,50 +1234,16 @@
                                             </div>
                                         </div>
 
-                                        <div class="flex items-center justify-between">
-                                            <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Pembayaran</p>
-                                            <div class="w-32">
-                                                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Pajak PB1 (%)</label>
-                                                <div class="relative">
-                                                    <input wire:model.live="taxRate" type="number" min="0" max="100" step="0.01" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pl-7 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
-                                                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                                        <span class="text-gray-500 dark:text-gray-400">%</span>
-                                                    </div>
-                                                </div>
-                                                <?php if (isset($component)) { $__componentOriginalee90cf1aab8b8cee8674701eaf7a143f = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.common.input-error','data' => ['for' => 'taxRate']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('common.input-error'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['for' => 'taxRate']); ?>
-<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
-
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f)): ?>
-<?php $attributes = $__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f; ?>
-<?php unset($__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginalee90cf1aab8b8cee8674701eaf7a143f)): ?>
-<?php $component = $__componentOriginalee90cf1aab8b8cee8674701eaf7a143f; ?>
-<?php unset($__componentOriginalee90cf1aab8b8cee8674701eaf7a143f); ?>
-<?php endif; ?>
-                                            </div>
-                                        </div>
-                                        <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div class="sm:col-span-2">
                                                 <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Metode Bayar</label>
-                                                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                                <div class="grid grid-cols-3 gap-3">
                                                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $paymentMethods; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pm): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                                         <?php if(in_array($pm['id'], ['gofood', 'grab_food', 'shopee_food'], true)) continue; ?>
                                                         <button 
                                                             type="button"
                                                             wire:click="$set('paymentMethod', '<?php echo e($pm['id']); ?>')"
-                                                            class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition-all duration-200 hover:shadow-md
+                                                            class="flex min-h-[92px] flex-col items-center justify-center rounded-xl border p-3 text-center transition-all duration-200 hover:shadow-md
                                                             <?php echo e($paymentMethod === $pm['id'] 
                                                                 ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-500/20 dark:border-brand-400 dark:bg-brand-900/20 dark:text-brand-300' 
                                                                 : 'border-gray-200 bg-white text-gray-600 hover:border-brand-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-800'); ?>"
@@ -1363,8 +1329,20 @@
 <?php $component = $__componentOriginalee90cf1aab8b8cee8674701eaf7a143f; ?>
 <?php unset($__componentOriginalee90cf1aab8b8cee8674701eaf7a143f); ?>
 <?php endif; ?>
-                                                    
-                                                    <!-- Quick Amount Suggestions -->
+                                                    <div class="mt-3 rounded-xl bg-gray-100 p-4 dark:bg-gray-800">
+                                                        <div class="flex justify-between items-center">
+                                                            <span class="text-sm text-gray-600 dark:text-gray-400">Total Tagihan</span>
+                                                            <span class="text-sm font-semibold text-gray-900 dark:text-white">Rp <?php echo e(number_format($total, 0, ',', '.')); ?></span>
+                                                        </div>
+                                                        <div class="mt-2 flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                            <span class="text-base font-medium text-gray-800 dark:text-white/90">Kembalian</span>
+                                                            <span class="text-xl font-bold <?php echo e($cashChange >= 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'); ?>">
+                                                                Rp <?php echo e(number_format((int) $cashChange, 0, ',', '.')); ?>
+
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
                                                     <div class="mt-3 flex flex-wrap gap-2">
                                                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = [20000, 50000, 100000, 200000]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $amt): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($amt >= $total): ?>
@@ -1385,20 +1363,6 @@
                                                         >
                                                             Uang Pas
                                                         </button>
-                                                    </div>
-
-                                                    <div class="mt-4 rounded-xl bg-gray-100 p-4 dark:bg-gray-800">
-                                                        <div class="flex justify-between items-center">
-                                                            <span class="text-sm text-gray-600 dark:text-gray-400">Total Tagihan</span>
-                                                            <span class="text-sm font-semibold text-gray-900 dark:text-white">Rp <?php echo e(number_format($total, 0, ',', '.')); ?></span>
-                                                        </div>
-                                                        <div class="mt-2 flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
-                                                            <span class="text-base font-medium text-gray-800 dark:text-white/90">Kembalian</span>
-                                                            <span class="text-xl font-bold <?php echo e($cashChange >= 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400'); ?>">
-                                                                Rp <?php echo e(number_format((int) $cashChange, 0, ',', '.')); ?>
-
-                                                            </span>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>

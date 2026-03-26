@@ -42,6 +42,8 @@ class DashboardPage extends Component
 
     public array $bestSellingProducts = [];
 
+    public array $todayProductSales = [];
+
     public array $latestTransactions = [];
 
     public function mount(): void
@@ -62,6 +64,7 @@ class DashboardPage extends Component
         $this->loadStatisticsForRange();
 
         $this->bestSellingProducts = $this->getBestSellingProducts($now);
+        $this->todayProductSales = $this->getTodayProductSales($now);
         $this->latestTransactions = $this->getLatestTransactions();
     }
 
@@ -168,6 +171,35 @@ class DashboardPage extends Component
                 'name' => $product?->name ?? '-',
                 'image' => $product?->image ?? '/images/product/product-01.jpg',
                 'sold' => (int) ($item->getAttribute('sold') ?? 0),
+            ];
+        })->all();
+    }
+
+    protected function getTodayProductSales(Carbon $now): array
+    {
+        $from = $now->copy()->startOfDay();
+        $to = $now->copy()->endOfDay();
+
+        $rows = TransactionItem::query()
+            ->selectRaw('product_id, SUM(quantity) as sold, SUM(subtotal) as total')
+            ->whereHas('transaction', function ($query) use ($from, $to) {
+                $query->whereIn('payment_status', ['paid', 'settlement', 'capture', 'success', 'partial_refund'])
+                    ->whereBetween('created_at', [$from, $to]);
+            })
+            ->groupBy('product_id')
+            ->orderByDesc('sold')
+            ->with(['product'])
+            ->limit(10)
+            ->get();
+
+        return $rows->map(function (TransactionItem $item): array {
+            $product = $item->product;
+
+            return [
+                'name' => $product?->name ?? '-',
+                'image' => $product?->image ?? '/images/product/product-01.jpg',
+                'sold' => (int) ($item->getAttribute('sold') ?? 0),
+                'total' => (int) ($item->getAttribute('total') ?? 0),
             ];
         })->all();
     }

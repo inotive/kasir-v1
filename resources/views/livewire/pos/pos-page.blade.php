@@ -1,4 +1,53 @@
-<div class="space-y-6">
+<div
+    class="space-y-6"
+    x-data="{
+        isTypingTarget(el) {
+            if (!el) return false;
+            const tag = (el.tagName || '').toLowerCase();
+            return tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable;
+        },
+        handleShortcut(event) {
+            const target = event.target;
+            const typing = this.isTypingTarget(target);
+
+            if (event.key === 'F4' && !typing) {
+                event.preventDefault();
+                $wire.clearCart();
+                return;
+            }
+
+            if (event.key === 'F8' && !typing && !@js($cartLocked)) {
+                event.preventDefault();
+                if (@js(count($cartItems) > 0)) {
+                    $wire.openSavePending();
+                }
+                return;
+            }
+
+            if (event.key === 'F9' && !typing) {
+                event.preventDefault();
+                if (@js($checkoutModalOpen)) {
+                    $wire.checkout();
+                } else if (@js(count($cartItems) > 0)) {
+                    $wire.openCheckout();
+                }
+                return;
+            }
+
+            if (event.key === 'Escape' && @js($checkoutModalOpen)) {
+                event.preventDefault();
+                $wire.set('checkoutModalOpen', false);
+                return;
+            }
+
+            if (event.key === 'Enter' && @js($checkoutModalOpen) && target && target.tagName !== 'TEXTAREA') {
+                event.preventDefault();
+                $wire.checkout();
+            }
+        }
+    }"
+    @keydown.window="handleShortcut($event)"
+>
     <div>
         <div class="px-2 pb-4 rounded-2xl">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -325,18 +374,18 @@
                             </div>
 
                             <div class="grid grid-cols-3 gap-2">
-                                <button type="button" wire:click="clearCart" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
-                                    Reset
+                                <button type="button" wire:click="clearCart" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                                    Reset (F4)
                                 </button>
                                 @if (! $cartLocked)
-                                    <button type="button" wire:click="openSavePending" @disabled(count($cartItems) === 0) class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-warning-300 bg-warning-50 text-sm font-semibold text-warning-800 hover:bg-warning-100 disabled:opacity-50 dark:border-warning-500/30 dark:bg-warning-500/10 dark:text-warning-300">
-                                        Simpan
+                                    <button type="button" wire:click="openSavePending" @disabled(count($cartItems) === 0) class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-warning-300 bg-warning-50 px-2 text-sm font-semibold text-warning-800 hover:bg-warning-100 disabled:opacity-50 dark:border-warning-500/30 dark:bg-warning-500/10 dark:text-warning-300">
+                                        Simpan (F8)
                                     </button>
                                 @else
                                     <div></div>
                                 @endif
-                                <button type="button" wire:click="openCheckout" @disabled(count($cartItems) === 0) class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg text-sm font-semibold text-white transition disabled:opacity-50">
-                                    Checkout
+                                <button type="button" wire:click="openCheckout" @disabled(count($cartItems) === 0) class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-2 text-sm font-semibold text-white transition disabled:opacity-50">
+                                    Checkout (F9)
                                 </button>
                             </div>
                         </div>
@@ -1109,11 +1158,11 @@
                             <div class="border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
                                 <div class="flex flex-col-reverse items-stretch justify-between gap-2 sm:flex-row sm:items-center">
                                     <button type="button" wire:click="$set('checkoutModalOpen', false)" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
-                                        Batal
+                                        Batal (Esc)
                                     </button>
 
                                     <button type="button" wire:click="checkout" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition">
-                                        Simpan Transaksi
+                                        Simpan Transaksi (Enter)
                                     </button>
                                 </div>
                             </div>

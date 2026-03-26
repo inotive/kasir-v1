@@ -1,18 +1,27 @@
-@props(['products' => [], 'totalRevenue' => 0])
+@props(['products' => [], 'totalRevenue' => 0, 'selectedDate' => ''])
 
 @php
     $rows = $products ?? [];
     $total = (int) ($totalRevenue ?? 0);
+    $date = $selectedDate ?? now()->toDateString();
+    $formattedDate = \Illuminate\Support\Carbon::parse($date)->format('d M Y');
 @endphp
 
 <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
     <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">Penjualan Produk Hari Ini</h3>
-        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ now()->format('d M Y') }}</span>
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">Penjualan Produk</h3>
+        <x-common.date-picker
+            wire-model="productSalesDate"
+            :default-today="false"
+            input-class="h-9 w-auto rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+        />
     </div>
 
     <div class="mb-4 flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 dark:bg-gray-800/50">
-        <span class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Pendapatan</span>
+        <div>
+            <span class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Pendapatan</span>
+            <p class="text-xs text-gray-500 dark:text-gray-500">{{ $formattedDate }}</p>
+        </div>
         <span class="text-lg font-bold text-gray-800 dark:text-white">Rp{{ number_format($total, 0, ',', '.') }}</span>
     </div>
 
@@ -59,7 +68,7 @@
                 @empty
                     <tr class="border-t border-gray-100 dark:border-gray-800">
                         <td colspan="4" class="py-6">
-                            <p class="text-center text-theme-sm text-gray-500 dark:text-gray-400">Belum ada penjualan hari ini.</p>
+                            <p class="text-center text-theme-sm text-gray-500 dark:text-gray-400">Belum ada penjualan.</p>
                         </td>
                     </tr>
                 @endforelse

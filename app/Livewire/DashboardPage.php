@@ -44,6 +44,10 @@ class DashboardPage extends Component
 
     public array $todayProductSales = [];
 
+    public string $productSalesDate = '';
+
+    public int $productSalesRevenue = 0;
+
     public array $latestTransactions = [];
 
     public function mount(): void
@@ -64,8 +68,52 @@ class DashboardPage extends Component
         $this->loadStatisticsForRange();
 
         $this->bestSellingProducts = $this->getBestSellingProducts($now);
-        $this->todayProductSales = $this->getTodayProductSales($now);
+        $this->productSalesDate = $now->toDateString();
+        $this->loadProductSalesByDate();
         $this->latestTransactions = $this->getLatestTransactions();
+    }
+
+    public function updatedProductSalesDate(string $date): void
+    {
+        if (! empty($date)) {
+            $this->loadProductSalesByDate();
+        }
+    }
+
+    protected function loadProductSalesByDate(): void
+    {
+        if (empty($this->productSalesDate)) {
+            return;
+        }
+
+        $date = Carbon::parse($this->productSalesDate);
+        $from = $date->copy()->startOfDay();
+        $to = $date->copy()->endOfDay();
+
+        $rows = TransactionItem::query()
+            ->selectRaw('product_id, SUM(quantity) as sold, SUM(subtotal) as total')
+            ->whereHas('transaction', function ($query) use ($from, $to) {
+                $query->whereIn('payment_status', ['paid', 'settlement', 'capture', 'success', 'partial_refund'])
+                    ->whereBetween('created_at', [$from, $to]);
+            })
+            ->groupBy('product_id')
+            ->orderByDesc('sold')
+            ->with(['product'])
+            ->limit(10)
+            ->get();
+
+        $this->todayProductSales = $rows->map(function (TransactionItem $item): array {
+            $product = $item->product;
+
+            return [
+                'name' => $product?->name ?? '-',
+                'image' => $product?->image ?? '/images/product/product-01.jpg',
+                'sold' => (int) ($item->getAttribute('sold') ?? 0),
+                'total' => (int) ($item->getAttribute('total') ?? 0),
+            ];
+        })->all();
+
+        $this->productSalesRevenue = (int) round(NetSales::netSalesBetween($from, $to));
     }
 
     public function render(): View

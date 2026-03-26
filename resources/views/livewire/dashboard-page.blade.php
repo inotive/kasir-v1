@@ -19,7 +19,7 @@
             :revenue-amount="$monthlyRevenueAmount"
             :today-amount="$todayRevenueAmount"
         />
-        <x-ecommerce.today-product-sales :products="$todayProductSales" :total-revenue="$todayRevenueAmount" />
+        <x-ecommerce.today-product-sales :products="$todayProductSales" :total-revenue="$productSalesRevenue" :selected-date="$productSalesDate" />
         <x-ecommerce.best-selling-products :products="$bestSellingProducts" />
     </div>
 </div>

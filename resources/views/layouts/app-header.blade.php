@@ -50,8 +50,13 @@
 
             <!-- Logo (mobile only) -->
             <a href="{{ route('dashboard', [], false) }}" class="xl:hidden">
-                <img class="dark:hidden" src="/images/logo/logo.svg" alt="Logo" width="150" height="40"  />
-                <img class="hidden dark:block" src="/images/logo/logo-dark.svg" alt="Logo" width="150" height="40"  />
+                <img
+                    src="{{ asset('images/logo/pngtree-pools-icon-logo-design-activity-beach-summer-vector-png-image_12898075.png') }}?v={{ filemtime(public_path('images/logo/pngtree-pools-icon-logo-design-activity-beach-summer-vector-png-image_12898075.png')) }}"
+                    alt="Logo"
+                    width="56"
+                    height="56"
+                    class="h-14 w-14 object-contain"
+                />
             </a>
 
             <!-- Application Menu Toggle (mobile only) -->

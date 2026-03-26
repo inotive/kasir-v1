@@ -16,7 +16,7 @@
         <span class="text-lg font-bold text-gray-800 dark:text-white">Rp{{ number_format($total, 0, ',', '.') }}</span>
     </div>
 
-    <div class="max-h-[400px] overflow-y-auto custom-scrollbar">
+    <div class="max-h-[320px] overflow-y-auto custom-scrollbar">
         <table class="min-w-full">
             <thead>
                 <tr class="border-t border-gray-100 dark:border-gray-800">

@@ -1056,7 +1056,7 @@ class PosPage extends Component
         $this->resetValidation();
         $this->cashReceived = null;
         $this->cashChange = 0;
-        $this->checkoutStep = 1;
+        $this->checkoutStep = 3;
         $this->checkoutModalOpen = true;
     }
 

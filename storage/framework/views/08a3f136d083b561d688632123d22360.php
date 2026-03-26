@@ -12,7 +12,7 @@
     </script>
 
     <title><?php echo e($title ?? 'Dashboard'); ?> | Sellera - Seleranya UMKM</title>
-    <link rel="icon" href="<?php echo e(asset('assets/images/512.png')); ?>" type="image/png">
+    <link rel="icon" href="<?php echo e(asset('images/logo/pngtree-pools-icon-logo-design-activity-beach-summer-vector-png-image_12898075.png')); ?>" type="image/png">
     <link rel="manifest" href="<?php echo e(route('admin.manifest')); ?>">
 
     <!-- Scripts -->

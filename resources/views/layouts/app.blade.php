@@ -12,7 +12,7 @@
     </script>
 
     <title>{{ $title ?? 'Dashboard' }} | Sellera - Seleranya UMKM</title>
-    <link rel="icon" href="{{ asset('assets/images/512.png') }}" type="image/png">
+    <link rel="icon" href="{{ asset('images/logo/pngtree-pools-icon-logo-design-activity-beach-summer-vector-png-image_12898075.png') }}" type="image/png">
     <link rel="manifest" href="{{ route('admin.manifest') }}">
 
     <!-- Scripts -->

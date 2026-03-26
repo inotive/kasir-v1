@@ -794,15 +794,9 @@
                             <div class="min-h-0 flex flex-col">
                             <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
                                 <div>
-                                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">Checkout - Langkah {{ $checkoutStep }}/3</h3>
+                                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">Checkout</h3>
                                     <p class="text-sm text-gray-500 dark:text-gray-400">
-                                        @if ($checkoutStep === 1)
-                                            Data Pelanggan
-                                        @elseif ($checkoutStep === 2)
-                                            Diskon & Voucher
-                                        @else
-                                            Pembayaran
-                                        @endif
+                                        Pembayaran
                                     </p>
                                 </div>
                                 <button type="button" wire:click="$set('checkoutModalOpen', false)" class="text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
@@ -887,7 +881,7 @@
                                     </div>
                                 @endif
 
-                                @if ($checkoutStep === 2)
+                                @if ($checkoutStep === 2 && false)
                                     <div class="mb-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
                                         <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Voucher</p>
                                         <div class="mt-3">
@@ -999,6 +993,22 @@
 
                                 @if ($checkoutStep === 3)
                                     <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+                                        <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+                                            <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Customer</p>
+                                            <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                <div>
+                                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
+                                                    <input wire:model.live="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="Walk-in" @disabled($cartLocked) />
+                                                    <x-common.input-error for="customerName" />
+                                                </div>
+                                                <div>
+                                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Telepon (Opsional)</label>
+                                                    <input wire:model.live="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) />
+                                                    <x-common.input-error for="customerPhone" />
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div class="flex items-center justify-between">
                                             <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Pembayaran</p>
                                             <div class="w-32">
@@ -1017,6 +1027,7 @@
                                                 <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Metode Bayar</label>
                                                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                                     @foreach ($paymentMethods as $pm)
+                                                        @continue(in_array($pm['id'], ['gofood', 'grab_food', 'shopee_food'], true))
                                                         <button 
                                                             type="button"
                                                             wire:click="$set('paymentMethod', '{{ $pm['id'] }}')"
@@ -1060,7 +1071,7 @@
                                                             inputmode="numeric" 
                                                             aria-invalid="{{ $errors->has('cashReceived') ? 'true' : 'false' }}"
                                                             aria-describedby="{{ $errors->has('cashReceived') ? 'error-cashReceived' : '' }}"
-                                                            class="dark:bg-dark-900 shadow-theme-xs h-12 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 pl-10 text-lg font-bold text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400" 
+                                                            class="dark:bg-dark-900 shadow-theme-xs h-16 w-full rounded-lg border border-gray-300 bg-white px-5 py-3 pl-12 text-2xl font-bold text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400" 
                                                             placeholder="0" 
                                                         />
                                                     </div>
@@ -1109,25 +1120,13 @@
 
                             <div class="border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
                                 <div class="flex flex-col-reverse items-stretch justify-between gap-2 sm:flex-row sm:items-center">
-                                    @if ($checkoutStep > 1)
-                                        <button type="button" wire:click="prevStep" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
-                                            Kembali
-                                        </button>
-                                    @else
-                                        <button type="button" wire:click="$set('checkoutModalOpen', false)" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
-                                            Batal
-                                        </button>
-                                    @endif
+                                    <button type="button" wire:click="$set('checkoutModalOpen', false)" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                                        Batal
+                                    </button>
 
-                                    @if ($checkoutStep < 3)
-                                        <button type="button" wire:click="nextStep" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition">
-                                            Lanjut
-                                        </button>
-                                    @else
-                                        <button type="button" wire:click="checkout" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition">
-                                            Simpan Transaksi
-                                        </button>
-                                    @endif
+                                    <button type="button" wire:click="checkout" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition">
+                                        Simpan Transaksi
+                                    </button>
                                 </div>
                             </div>
                         

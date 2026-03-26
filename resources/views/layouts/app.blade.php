@@ -11,7 +11,7 @@
         window.APP_CAN_CASHIER_ORDERS = @json(auth()->user()?->can('pos.access') ?? false);
     </script>
 
-    <title>{{ $title ?? 'Dashboard' }} | Sellera - Seleranya UMKM</title>
+    <title>{{ $title ?? 'Dashboard' }} | CIYEMON - Waterboom</title>
     <link rel="icon" href="{{ asset('images/logo/pngtree-pools-icon-logo-design-activity-beach-summer-vector-png-image_12898075.png') }}" type="image/png">
     <link rel="manifest" href="{{ route('admin.manifest') }}">
 
@@ -129,7 +129,7 @@
             }
         })();
     </script>
-    
+
 </head>
 
 <body

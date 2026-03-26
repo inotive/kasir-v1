@@ -14,7 +14,7 @@
         @vite(["resources/css/app.css", "resources/js/app.js"])
 
         <link rel="icon" href="{{ asset('images/logo/pngtree-pools-icon-logo-design-activity-beach-summer-vector-png-image_12898075.png') }}" type="image/png">
-        <title>{{ $title ?? "Sellera UMKM" }}</title>
+        <title>{{ $title ?? "CIYEMON - Waterboom }}</title>
     </head>
     <body class="{{ $class ?? '' }} mx-auto max-w-md min-h-screen font-poppins bg-gray-50 text-gray-900">
         {{ $slot }}

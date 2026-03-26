@@ -1,0 +1,142 @@
+<?php $attributes ??= new \Illuminate\View\ComponentAttributeBag;
+
+$__newAttributes = [];
+$__propNames = \Illuminate\View\ComponentAttributeBag::extractPropNames(([
+    'transactions' => 0,
+    'transactionsDeltaPercent' => 0,
+    'transactionsDeltaUp' => true,
+    'revenueAmount' => 0,
+]));
+
+foreach ($attributes->all() as $__key => $__value) {
+    if (in_array($__key, $__propNames)) {
+        $$__key = $$__key ?? $__value;
+    } else {
+        $__newAttributes[$__key] = $__value;
+    }
+}
+
+$attributes = new \Illuminate\View\ComponentAttributeBag($__newAttributes);
+
+unset($__propNames);
+unset($__newAttributes);
+
+foreach (array_filter(([
+    'transactions' => 0,
+    'transactionsDeltaPercent' => 0,
+    'transactionsDeltaUp' => true,
+    'revenueAmount' => 0,
+]), 'is_string', ARRAY_FILTER_USE_KEY) as $__key => $__value) {
+    $$__key = $$__key ?? $__value;
+}
+
+$__defined_vars = get_defined_vars();
+
+foreach ($attributes->all() as $__key => $__value) {
+    if (array_key_exists($__key, $__defined_vars)) unset($$__key);
+}
+
+unset($__defined_vars, $__key, $__value); ?>
+
+<?php
+    $transactionsDelta = (float) ($transactionsDeltaPercent ?? 0);
+    $transactionsDeltaUp = (bool) ($transactionsDeltaUp ?? true);
+    $transactionsDeltaText = rtrim(rtrim(number_format(abs($transactionsDelta), 2, '.', ''), '0'), '.').'%';
+?>
+
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6">
+    <!-- Metric Item Start -->
+    <div
+        class="rounded-2xl border border-gray-200 bg-white p-5 md:p-6 dark:border-gray-800 dark:bg-white/[0.03]"
+    >
+        <div
+            class="mb-6 flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+        >
+            <svg
+                class="fill-current"
+                width="25"
+                height="24"
+                viewBox="0 0 25 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M9.13768 5.60156C7.92435 5.60156 6.94074 6.58517 6.94074 7.79851C6.94074 9.01185 7.92435 9.99545 9.13768 9.99545C10.351 9.99545 11.3346 9.01185 11.3346 7.79851C11.3346 6.58517 10.351 5.60156 9.13768 5.60156ZM5.44074 7.79851C5.44074 5.75674 7.09592 4.10156 9.13768 4.10156C11.1795 4.10156 12.8346 5.75674 12.8346 7.79851C12.8346 9.84027 11.1795 11.4955 9.13768 11.4955C7.09592 11.4955 5.44074 9.84027 5.44074 7.79851ZM5.19577 15.3208C4.42094 16.0881 4.03702 17.0608 3.8503 17.8611C3.81709 18.0034 3.85435 18.1175 3.94037 18.2112C4.03486 18.3141 4.19984 18.3987 4.40916 18.3987H13.7582C13.9675 18.3987 14.1325 18.3141 14.227 18.2112C14.313 18.1175 14.3503 18.0034 14.317 17.8611C14.1303 17.0608 13.7464 16.0881 12.9716 15.3208C12.2153 14.572 11.0231 13.955 9.08367 13.955C7.14421 13.955 5.95202 14.572 5.19577 15.3208ZM4.14036 14.2549C5.20488 13.2009 6.78928 12.455 9.08367 12.455C11.3781 12.455 12.9625 13.2009 14.027 14.2549C15.0729 15.2906 15.554 16.5607 15.7778 17.5202C16.0991 18.8971 14.9404 19.8987 13.7582 19.8987H4.40916C3.22695 19.8987 2.06829 18.8971 2.38953 17.5202C2.6134 16.5607 3.09442 15.2906 4.14036 14.2549ZM15.6375 11.4955C14.8034 11.4955 14.0339 11.2193 13.4153 10.7533C13.7074 10.3314 13.9387 9.86419 14.0964 9.36432C14.493 9.75463 15.0371 9.99545 15.6375 9.99545C16.8508 9.99545 17.8344 9.01185 17.8344 7.79851C17.8344 6.58517 16.8508 5.60156 15.6375 5.60156C15.0371 5.60156 14.493 5.84239 14.0964 6.23271C13.9387 5.73284 13.7074 5.26561 13.4153 4.84371C14.0338 4.37777 14.8034 4.10156 15.6375 4.10156C17.6792 4.10156 19.3344 5.75674 19.3344 7.79851C19.3344 9.84027 17.6792 11.4955 15.6375 11.4955ZM20.2581 19.8987H16.7233C17.0347 19.4736 17.2492 18.969 17.3159 18.3987H20.2581C20.4674 18.3987 20.6323 18.3141 20.7268 18.2112C20.8129 18.1175 20.8501 18.0034 20.8169 17.861C20.6302 17.0607 20.2463 16.088 19.4714 15.3208C18.7379 14.5945 17.5942 13.9921 15.7563 13.9566C15.5565 13.6945 15.3328 13.437 15.0824 13.1891C14.8476 12.9566 14.5952 12.7384 14.3249 12.5362C14.7185 12.4831 15.1376 12.4549 15.5835 12.4549C17.8779 12.4549 19.4623 13.2008 20.5269 14.2549C21.5728 15.2906 22.0538 16.5607 22.2777 17.5202C22.5989 18.8971 21.4403 19.8987 20.2581 19.8987Z"
+                    fill=""
+                />
+            </svg>
+        </div>
+
+        <p class="text-theme-sm text-gray-500 dark:text-gray-400">Transaksi Hari Ini</p>
+
+        <div class="mt-3 flex items-end justify-between">
+            <div>
+                <h4
+                    class="text-title-sm font-bold text-gray-800 dark:text-white/90"
+                >
+                    <?php echo e(number_format((int) $transactions, 0, ',', '.')); ?>
+
+                </h4>
+            </div>
+
+            <div class="flex items-center gap-1">
+                <span
+                    class="<?php echo \Illuminate\Support\Arr::toCssClasses([
+                        'text-theme-xs flex items-center gap-1 rounded-full px-2 py-0.5 font-medium',
+                        'bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-500' => $transactionsDeltaUp,
+                        'bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-500' => ! $transactionsDeltaUp,
+                    ]); ?>"
+                >
+                    <?php echo e($transactionsDeltaUp ? '+' : '-'); ?><?php echo e($transactionsDeltaText); ?>
+
+                </span>
+
+                <span class="text-theme-xs text-gray-500 dark:text-gray-400">vs Kemarin</span>
+            </div>
+        </div>
+    </div>
+    <!-- Metric Item End -->
+
+    <!-- Metric Item Start -->
+    <div
+        class="rounded-2xl border border-gray-200 bg-white p-5 md:p-6 dark:border-gray-800 dark:bg-white/[0.03]"
+    >
+        <div
+            class="mb-6 flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+        >
+            <svg
+                class="fill-current"
+                width="25"
+                height="24"
+                viewBox="0 0 25 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M13.4164 2.79175C13.4164 2.37753 13.0806 2.04175 12.6664 2.04175C12.2522 2.04175 11.9164 2.37753 11.9164 2.79175V4.39876C9.94768 4.67329 8.43237 6.36366 8.43237 8.40795C8.43237 10.0954 9.47908 11.6058 11.0591 12.1984L13.7474 13.2066C14.7419 13.5795 15.4008 14.5303 15.4008 15.5925C15.4008 16.9998 14.2599 18.1407 12.8526 18.1407H11.7957C10.7666 18.1407 9.93237 17.3064 9.93237 16.2773C9.93237 15.8631 9.59659 15.5273 9.18237 15.5273C8.76816 15.5273 8.43237 15.8631 8.43237 16.2773C8.43237 18.1348 9.9382 19.6407 11.7957 19.6407H11.9164V21.2083C11.9164 21.6225 12.2522 21.9583 12.6664 21.9583C13.0806 21.9583 13.4164 21.6225 13.4164 21.2083V19.6017C15.3853 19.3274 16.9008 17.6369 16.9008 15.5925C16.9008 13.905 15.8541 12.3946 14.2741 11.8021L11.5858 10.7939C10.5912 10.4209 9.93237 9.47013 9.93237 8.40795C9.93237 7.00063 11.0732 5.85976 12.4806 5.85976H13.5374C14.5665 5.85976 15.4008 6.69401 15.4008 7.72311C15.4008 8.13732 15.7366 8.47311 16.1508 8.47311C16.565 8.47311 16.9008 8.13732 16.9008 7.72311C16.9008 5.86558 15.395 4.35976 13.5374 4.35976H13.4164V2.79175Z"
+                    fill=""
+                />
+            </svg>
+        </div>
+
+        <p class="text-theme-sm text-gray-500 dark:text-gray-400">Omzet (Net Sales) Hari Ini</p>
+
+        <div class="mt-3 flex items-end justify-between">
+            <div>
+                <h4
+                    class="text-title-sm font-bold text-gray-800 dark:text-white/90"
+                >
+                    Rp<?php echo e(number_format((int) $revenueAmount, 0, ',', '.')); ?>
+
+                </h4>
+            </div>
+            
+        </div>
+    </div>
+    <!-- Metric Item End -->
+</div>
+<?php /**PATH /Users/bagusws/Documents/GitHub/kasir-v1/resources/views/components/ecommerce/ecommerce-metrics.blade.php ENDPATH**/ ?>

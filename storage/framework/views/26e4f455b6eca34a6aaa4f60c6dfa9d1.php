@@ -20,12 +20,33 @@
                             wire:model.live="email"
                             type="email"
                             autocomplete="username"
-                            aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
-                            aria-describedby="{{ $errors->has('email') ? 'error-email' : '' }}"
+                            aria-invalid="<?php echo e($errors->has('email') ? 'true' : 'false'); ?>"
+                            aria-describedby="<?php echo e($errors->has('email') ? 'error-email' : ''); ?>"
                             class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-hidden focus:ring-3 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
                             placeholder="nama@toko.com"
                         />
-                        <x-common.input-error for="email" />
+                        <?php if (isset($component)) { $__componentOriginalee90cf1aab8b8cee8674701eaf7a143f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.common.input-error','data' => ['for' => 'email']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('common.input-error'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['for' => 'email']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f)): ?>
+<?php $attributes = $__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f; ?>
+<?php unset($__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalee90cf1aab8b8cee8674701eaf7a143f)): ?>
+<?php $component = $__componentOriginalee90cf1aab8b8cee8674701eaf7a143f; ?>
+<?php unset($__componentOriginalee90cf1aab8b8cee8674701eaf7a143f); ?>
+<?php endif; ?>
                     </div>
 
                     <div>
@@ -37,8 +58,8 @@
                                 wire:model.live="password"
                                 :type="showPassword ? 'text' : 'password'"
                                 autocomplete="current-password"
-                                aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
-                                aria-describedby="{{ $errors->has('password') ? 'error-password' : '' }}"
+                                aria-invalid="<?php echo e($errors->has('password') ? 'true' : 'false'); ?>"
+                                aria-describedby="<?php echo e($errors->has('password') ? 'error-password' : ''); ?>"
                                 class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent py-2.5 pr-11 pl-4 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-hidden focus:ring-3 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
                                 placeholder="Masukkan password"
                             />
@@ -51,7 +72,28 @@
                                 <span x-show="showPassword">Sembunyi</span>
                             </button>
                         </div>
-                        <x-common.input-error for="password" />
+                        <?php if (isset($component)) { $__componentOriginalee90cf1aab8b8cee8674701eaf7a143f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.common.input-error','data' => ['for' => 'password']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('common.input-error'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['for' => 'password']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f)): ?>
+<?php $attributes = $__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f; ?>
+<?php unset($__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalee90cf1aab8b8cee8674701eaf7a143f)): ?>
+<?php $component = $__componentOriginalee90cf1aab8b8cee8674701eaf7a143f; ?>
+<?php unset($__componentOriginalee90cf1aab8b8cee8674701eaf7a143f); ?>
+<?php endif; ?>
                     </div>
 
                     <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -68,7 +110,7 @@
 
         <div
             class="relative hidden h-full w-full border-l border-slate-300 bg-white bg-center bg-no-repeat bg-contain lg:block lg:w-1/2 dark:border-white/10 dark:bg-white"
-            style="background-image: url('{{ asset('images/shape/bg-login2.png') }}?v={{ filemtime(public_path('images/shape/bg-login2.png')) }}');"
+            style="background-image: url('<?php echo e(asset('images/shape/bg-login2.png')); ?>?v=<?php echo e(filemtime(public_path('images/shape/bg-login2.png'))); ?>');"
         ></div>
         <div class="fixed z-50 right-6 bottom-6">
             <button
@@ -85,3 +127,4 @@
         </div>
     </div>
 </div>
+<?php /**PATH /Users/bagusws/Documents/GitHub/kasir-v1/resources/views/livewire/auth/sign-in-page.blade.php ENDPATH**/ ?>

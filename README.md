@@ -142,3 +142,4 @@ Project memiliki perintah:
 Perintah ini akan menjalankan install composer, copy .env (jika belum ada), generate key, migrate, npm install, dan build asset.
 Setelah itu tetap jalankan seeder role/permission dan lakukan setup user owner jika belum ada user.
 # kasir-v1
+# kasir-v1

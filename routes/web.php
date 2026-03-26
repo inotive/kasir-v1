@@ -57,15 +57,13 @@ use App\Livewire\Vouchers\VoucherRedemptionsPage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-$landingDomain = parse_url(config('app.url'), PHP_URL_HOST);
+Route::get('/', function () {
+    if (Auth::check()) {
+        return redirect()->route('dashboard');
+    }
 
-if (is_string($landingDomain) && $landingDomain !== '') {
-    Route::domain($landingDomain)->group(function () {
-        Route::view('/', 'landing')->name('landing');
-    });
-} else {
-    Route::view('/', 'landing')->name('landing');
-}
+    return redirect()->route('signin');
+})->name('landing');
 
 Route::get('/t/{code}', TableQrController::class)->name('tables.qr');
 Route::prefix('order')->name('self-order.')->group(function () {

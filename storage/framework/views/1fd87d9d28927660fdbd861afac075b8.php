@@ -1291,9 +1291,9 @@
                                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($paymentMethod === 'cash'): ?>
                                                 <div class="sm:col-span-2">
                                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Uang Diterima</label>
-                                                    <div class="relative">
-                                                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                                            <span class="text-gray-500 dark:text-gray-400 font-semibold">Rp</span>
+                                                    <div class="relative flex h-16 w-full items-center rounded-lg border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
+                                                        <div class="flex h-full items-center border-r border-gray-200 px-4 text-lg font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+                                                            Rp
                                                         </div>
                                                         <input 
                                                             x-data="currencyInput($wire.entangle('cashReceived'))"
@@ -1303,9 +1303,12 @@
                                                             inputmode="numeric" 
                                                             aria-invalid="<?php echo e($errors->has('cashReceived') ? 'true' : 'false'); ?>"
                                                             aria-describedby="<?php echo e($errors->has('cashReceived') ? 'error-cashReceived' : ''); ?>"
-                                                            class="dark:bg-dark-900 shadow-theme-xs h-16 w-full rounded-lg border border-gray-300 bg-white px-5 py-3 pl-12 text-2xl font-bold text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-brand-400" 
+                                                            class="h-full min-w-0 flex-1 bg-transparent px-4 py-3 text-2xl font-bold text-gray-900 outline-hidden dark:text-white" 
                                                             placeholder="0" 
                                                         />
+                                                        <div class="flex h-full items-center border-l border-gray-200 px-4 text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                                            Pembayaran
+                                                        </div>
                                                     </div>
                                                     <?php if (isset($component)) { $__componentOriginalee90cf1aab8b8cee8674701eaf7a143f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalee90cf1aab8b8cee8674701eaf7a143f = $attributes; } ?>

@@ -1,0 +1,21 @@
+<div class="space-y-6">
+    <x-ecommerce.product-form
+        :categories="$categories"
+        :printer-sources="$printerSources"
+        :ingredients="$ingredients"
+        :component-variants="$componentVariants"
+        :component-products="$componentProducts"
+        :ingredient-units="$ingredientUnits"
+        :ingredient-costs="$ingredientCosts"
+        :product-id="$productId"
+        :existing-image="$existingImage"
+        :image="$image"
+        :is-package="$isPackage"
+        :package-type="$packageType"
+        :package-items="$packageItems"
+        :complex-package-items="$complexPackageItems"
+        :variants="$variants"
+        :variant-recipes="$variantRecipes"
+        :hpp-by-variant-key="$hppByVariantKey"
+    />
+</div>

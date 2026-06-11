@@ -21,7 +21,7 @@ export const initChartTwo = () => {
 
         const chartTwoOptions = {
             series,
-            colors: ["#e5394a"],
+            colors: ["#2d4299"],
             chart: {
                 fontFamily: "Outfit, sans-serif",
                 type: "radialBar",
@@ -50,7 +50,7 @@ export const initChartTwo = () => {
                             fontSize: "36px",
                             fontWeight: "600",
                             offsetY: 60,
-                            color: "#e5394a",
+                            color: "#2d4299",
                             formatter: function (val) {
                                 return val + "%";
                             },
@@ -60,7 +60,7 @@ export const initChartTwo = () => {
             },
             fill: {
                 type: "solid",
-                colors: ["#e5394a"],
+                colors: ["#2d4299"],
             },
             stroke: {
                 lineCap: "round",

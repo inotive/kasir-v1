@@ -535,7 +535,7 @@
 
             <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
                 <a href="{{ $adminSignInUrl }}" class="w-full sm:w-auto bg-[#3FA0E4] hover:bg-blue-500 text-white px-8 py-3.5 rounded-full font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-sm">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M13.13 2.13l9.74 9.74c.19.19.19.51 0 .7l-9.74 9.74c-.19.19-.51.19-.7 0L2.69 12.57c-.19-.19-.19-.51 0-.7l9.74-9.74c.2-.19.51-.19.7 0z"/></svg>
+                    <svg class="w-[20px] h-[20px] flex-none order-first" fill="currentColor" viewBox="0 0 24 24"><path d="M11 21.883l-6.235-7.527-.765.144 5.621 9.5 1.379-2.117zm11.144-20.941c-2.316-1.032-8.259-1.343-13.125 3.523-2.919 2.92-4.514 6.272-4.874 8.926L2.49 14.82l2.457 3.151 5.539-5.742c.712.75 1.816 1.409 3.246 1.921l-5.69 5.86 3.14 2.44 1.464-1.605c2.721-.315 6.136-1.921 9.077-4.862 5.093-5.092 4.743-11.527 3.421-14.041zm-6.52 6.257c-1.218 1.219-3.196 1.219-4.414 0-1.218-1.218-1.218-3.196 0-4.414 1.218-1.218 3.196-1.218 4.414 0 1.218 1.218 1.218 3.196 0 4.414z"/></svg>
                     Mulai 14 Hari Gratis
                 </a>
                 <a href="{{ $brandWhatsappUrl ?? '#' }}" target="_blank" class="w-full sm:w-auto bg-white text-hippidark hover:bg-gray-50 px-8 py-3.5 rounded-full font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-sm">

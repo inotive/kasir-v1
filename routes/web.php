@@ -62,7 +62,7 @@ Route::get('/', function () {
         return redirect()->route('dashboard');
     }
 
-    return redirect()->route('signin');
+    return view('landing');
 })->name('landing');
 
 Route::get('/t/{code}', TableQrController::class)->name('tables.qr');

@@ -33,16 +33,20 @@ class AppServiceProvider extends ServiceProvider
         DiningTable::observe(DiningTableObserver::class);
 
         $printerSourcesForJs = [];
-        if (Schema::hasTable('printer_sources')) {
-            $printerSourcesForJs = PrinterSource::query()
-                ->orderBy('name')
-                ->get(['id', 'name', 'type'])
-                ->map(fn (PrinterSource $s) => [
-                    'id' => (int) $s->id,
-                    'name' => (string) $s->name,
-                    'type' => (string) $s->type,
-                ])
-                ->all();
+        try {
+            if (Schema::hasTable('printer_sources')) {
+                $printerSourcesForJs = PrinterSource::query()
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'type'])
+                    ->map(fn (PrinterSource $s) => [
+                        'id' => (int) $s->id,
+                        'name' => (string) $s->name,
+                        'type' => (string) $s->type,
+                    ])
+                    ->all();
+            }
+        } catch (\Throwable $e) {
+            // Ignore database connection issues during console commands / composer install
         }
 
         View::share('printerSourcesForJs', $printerSourcesForJs);

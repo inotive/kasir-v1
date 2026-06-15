@@ -115,8 +115,8 @@
             <div class="flex justify-between items-center h-20">
                 <div class="flex-shrink-0 flex items-center">
                     <a href="#" class="flex items-center gap-3">
-                        <img src="{{ $brandLogoUrl }}" alt="Logo" class="h-10 w-auto">
-                        <img src="{{ $brandTextUrl }}" alt="HIPPI Kasir" class="h-7 w-auto">
+                        <img src="{{ $brandLogoUrl }}" alt="Logo" class="h-11 w-auto">
+                        <img src="{{ $brandTextUrl }}" alt="HIPPI Kasir" class="h-14 w-auto">
                     </a>
                 </div>
                 <div class="hidden md:flex space-x-8 items-center">

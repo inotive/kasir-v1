@@ -146,18 +146,21 @@ class MenuHelper
                 'path' => self::path('users.index'),
                 'icon' => 'users',
                 'permission' => 'users.view',
+                'sidebar' => false,
             ],
             [
                 'name' => 'Peran & Hak Akses',
                 'path' => self::path('roles.index'),
                 'icon' => 'roles',
                 'permission' => 'roles.view',
+                'sidebar' => false,
             ],
             [
                 'name' => 'Pengaturan',
                 'path' => self::path('settings.index'),
                 'icon' => 'settings',
                 'permission' => 'settings.view',
+                'sidebar' => false,
             ],
         ];
 

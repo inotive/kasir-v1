@@ -157,6 +157,9 @@
                         <!-- Menu Items -->
                         <ul class="flex flex-col gap-1">
                             @foreach ($menuGroup['items'] as $itemIndex => $item)
+                                @if (isset($item['sidebar']) && $item['sidebar'] === false)
+                                    @continue
+                                @endif
                                 <li>
                                     @if (isset($item['subItems']))
                                         <!-- Menu Item with Submenu -->
@@ -280,10 +283,22 @@
     @endphp
     @if ($canGuides)
         <div
+            x-data="{ showGuideCard: !localStorage.getItem('hide_guide_card') }"
             x-cloak
-            x-show="$store.sidebar.isExpanded || $store.sidebar.isMobileOpen"
-            class="mx-auto mb-6 mt-4 w-full max-w-60 rounded-2xl border border-gray-200 bg-white px-4 py-5 dark:border-gray-800 dark:bg-white/[0.03]"
+            x-show="showGuideCard && ($store.sidebar.isExpanded || $store.sidebar.isMobileOpen)"
+            class="relative mx-auto mb-6 mt-4 w-full max-w-60 rounded-2xl border border-gray-200 bg-white px-4 py-5 dark:border-gray-800 dark:bg-white/[0.03]"
         >
+            <!-- Close Button -->
+            <button
+                @click="showGuideCard = false; localStorage.setItem('hide_guide_card', 'true')"
+                class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400 transition-colors focus:outline-none"
+                aria-label="Tutup Panduan"
+            >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+
             <div class="flex flex-col items-center justify-center gap-3 text-center">
                 <span class="mt-0.5 hidden md:inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 text-white">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

@@ -32,6 +32,10 @@
                         'light';
                     this.theme = savedTheme || systemTheme;
                     this.updateTheme();
+
+                    document.addEventListener('livewire:navigated', () => {
+                        this.updateTheme();
+                    });
                 },
                 theme: 'light',
                 toggle() {

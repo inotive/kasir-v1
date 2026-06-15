@@ -76,7 +76,7 @@
         <!-- Teks Logo Full saat Sidebar Terbuka -->
         <span x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
             class="text-xl font-bold tracking-tight text-black dark:text-white px-4">
-            CIYEMON
+            HIPPI KASIR
         </span>
 
         <!-- Teks Logo Inisial saat Sidebar Tertutup -->

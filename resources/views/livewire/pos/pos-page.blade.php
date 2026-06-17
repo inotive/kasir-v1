@@ -1100,7 +1100,38 @@
                                                             Rp
                                                         </div>
                                                         <input 
-                                                            x-data="currencyInput($wire.entangle('cashReceived'))"
+                                                            x-data="{
+                                                                displayValue: '',
+                                                                init() {
+                                                                    this.formatDisplay();
+                                                                    this.$watch('$wire.cashReceived', (val) => {
+                                                                        const currentNumeric = this.unformat(this.displayValue);
+                                                                        if (val !== currentNumeric) {
+                                                                            this.formatDisplay();
+                                                                        }
+                                                                    });
+                                                                },
+                                                                formatDisplay() {
+                                                                    const val = this.$wire.cashReceived;
+                                                                    if (val === null || val === undefined || val === '') {
+                                                                        this.displayValue = '';
+                                                                        return;
+                                                                    }
+                                                                    this.displayValue = new Intl.NumberFormat('id-ID').format(val);
+                                                                },
+                                                                unformat(val) {
+                                                                    if (!val) return null;
+                                                                    const raw = val.replace(/[^\d]/g, '');
+                                                                    return raw === '' ? null : parseInt(raw, 10);
+                                                                },
+                                                                handleInput(e) {
+                                                                    const raw = this.unformat(e.target.value);
+                                                                    $wire.set('cashReceived', raw !== null ? String(raw) : null);
+                                                                    this.displayValue = raw !== null 
+                                                                        ? new Intl.NumberFormat('id-ID').format(raw) 
+                                                                        : '';
+                                                                }
+                                                            }"
                                                             x-model="displayValue"
                                                             @input="handleInput"
                                                             type="text"

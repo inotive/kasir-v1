@@ -1044,17 +1044,31 @@
                                     <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
                                         <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
                                             <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Customer</p>
-                                            <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                                <div>
-                                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
-                                                    <input wire:model.live="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="Walk-in" @disabled($cartLocked) />
-                                                    <x-common.input-error for="customerName" />
+                                            <div class="mt-3">
+                                                <div class="flex gap-4 mb-3">
+                                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                                        <input type="radio" wire:model.live="customerType" value="walk_in" @disabled($cartLocked) class="text-brand-600 focus:ring-brand-500">
+                                                        <span class="text-sm text-gray-700 dark:text-gray-300">Walk-in</span>
+                                                    </label>
+                                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                                        <input type="radio" wire:model.live="customerType" value="member" @disabled($cartLocked) class="text-brand-600 focus:ring-brand-500">
+                                                        <span class="text-sm text-gray-700 dark:text-gray-300">Member</span>
+                                                    </label>
                                                 </div>
-                                                <div>
-                                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Telepon (Opsional)</label>
-                                                    <input wire:model.live="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) />
-                                                    <x-common.input-error for="customerPhone" />
-                                                </div>
+                                                @if ($customerType === 'member')
+                                                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                        <div>
+                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
+                                                            <input wire:model.live="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="Nama" @disabled($cartLocked) />
+                                                            <x-common.input-error for="customerName" />
+                                                        </div>
+                                                        <div>
+                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Telepon</label>
+                                                            <input wire:model.live="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) />
+                                                            <x-common.input-error for="customerPhone" />
+                                                        </div>
+                                                    </div>
+                                                @endif
                                             </div>
                                         </div>
 

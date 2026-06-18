@@ -139,6 +139,8 @@ class PosPage extends Component
 
     public ?string $customerPhone = null;
 
+    public string $customerType = 'walk_in';
+
     public string $paymentMethod = 'cash';
 
     public ?string $cashReceived = null;
@@ -269,6 +271,19 @@ class PosPage extends Component
         }
 
         $this->recalculateTotals();
+    }
+
+    public function updatedCustomerType(): void
+    {
+        if ($this->customerType === 'walk_in') {
+            $this->memberId = null;
+            $this->memberPoints = 0;
+            $this->redeemPoints = false;
+            $this->pointsToRedeem = 0;
+        } else {
+            $this->customerName = '';
+            $this->customerPhone = null;
+        }
     }
 
     public function updatedManualDiscountType(): void
@@ -1046,6 +1061,7 @@ class PosPage extends Component
         $this->clearCart();
         $this->orderType = 'take_away';
         $this->selectedTableId = null;
+        $this->customerType = 'walk_in';
         $this->memberId = null;
         $this->customerName = (string) ($setting->pos_default_customer_name ?? 'Walk-in');
         $this->customerPhone = null;
@@ -1484,6 +1500,19 @@ class PosPage extends Component
 
         $this->recalculateTotals();
 
+        if ($this->customerType === 'member' && $this->customerPhone) {
+            $phone = $this->normalizePhoneForMember($this->customerPhone);
+            $member = Member::firstOrCreate(
+                ['phone' => $phone],
+                ['name' => $this->customerName, 'phone' => $phone],
+            );
+            $this->memberId = (int) $member->id;
+            $this->customerName = (string) $member->name;
+            $this->customerPhone = (string) $member->phone;
+            $this->memberPoints = (int) $member->points;
+            $this->recalculateTotals();
+        }
+
         if (! $this->ensureManualDiscountValid()) {
             return;
         }
@@ -1902,6 +1931,24 @@ class PosPage extends Component
         }
 
         return $allocations;
+    }
+
+    private function normalizePhoneForMember(?string $phone): ?string
+    {
+        if (empty($phone)) {
+            return null;
+        }
+
+        $p = preg_replace('/\D+/', '', $phone);
+        if (str_starts_with($p, '0')) {
+            return '62'.substr($p, 1);
+        }
+
+        if (! str_starts_with($p, '62')) {
+            return '62'.$p;
+        }
+
+        return $p;
     }
 
     private function createPackageChildItems(Transaction $trx, TransactionItem $parent, Product $product, array $cartItem, int $parentQty): void

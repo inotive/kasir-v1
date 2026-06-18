@@ -8,6 +8,7 @@ use App\Models\PrinterSource;
 use App\Models\Product;
 use App\Models\ProductComplexPackageItem;
 use App\Models\ProductPackageItem;
+use App\Models\ProductSubvariant;
 use App\Models\ProductVariant;
 use App\Models\ProductVariantRecipe;
 use App\Support\Number\QuantityFormatter;
@@ -55,6 +56,8 @@ class ProductFormPage extends Component
 
     public array $variantRecipes = [];
 
+    public array $subvariants = [];
+
     public array $packageItems = [];
 
     public array $complexPackageItems = [];
@@ -62,6 +65,8 @@ class ProductFormPage extends Component
     protected array $validationAttributes = [
         'variantRecipes.*.*.ingredient_id' => 'Bahan baku',
         'variantRecipes.*.*.quantity' => 'Qty / porsi',
+        'subvariants.*.name' => 'Nama subvarian',
+        'subvariants.*.price' => 'Harga subvarian',
     ];
 
     private function kitchenPrinterSourcesQuery()
@@ -78,6 +83,7 @@ class ProductFormPage extends Component
             $this->variantRecipes = [
                 (string) $variant['key'] => [],
             ];
+            $this->subvariants = [];
             $this->packageItems = [];
             $this->complexPackageItems = [];
 
@@ -86,7 +92,7 @@ class ProductFormPage extends Component
             return;
         }
 
-        $product->load(['variants.recipes', 'packageItems.componentVariant.product', 'complexPackageItems.componentProduct']);
+        $product->load(['variants.recipes', 'subvariants', 'packageItems.componentVariant.product', 'complexPackageItems.componentProduct']);
 
         $this->productId = (int) $product->id;
         $this->title = 'Edit Produk';
@@ -126,6 +132,7 @@ class ProductFormPage extends Component
         }
 
         $this->variantRecipes = [];
+        $this->subvariants = [];
 
         $variantsById = $product->variants->keyBy('id');
 
@@ -150,6 +157,17 @@ class ProductFormPage extends Component
                 ->values()
                 ->all();
         }
+
+        $this->subvariants = $product->subvariants
+            ->map(fn ($sub) => [
+                'id' => (int) $sub->id,
+                'key' => (string) Str::uuid(),
+                'name' => (string) $sub->name,
+                'price' => (string) $sub->price,
+                'percent' => $sub->percent === null ? null : (int) $sub->percent,
+            ])
+            ->values()
+            ->all();
 
         $this->packageItems = $product->packageItems
             ->map(fn (ProductPackageItem $item) => [
@@ -222,6 +240,12 @@ class ProductFormPage extends Component
             'variants.*.name' => ['required', 'string', 'max:255'],
             'variants.*.price' => ['required', 'integer', 'min:0'],
             'variants.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'subvariants' => ['array'],
+            'subvariants.*.id' => ['nullable', 'integer', 'exists:product_subvariants,id', 'distinct'],
+            'subvariants.*.key' => ['required', 'string', 'max:255', 'distinct'],
+            'subvariants.*.name' => ['required', 'string', 'max:255'],
+            'subvariants.*.price' => ['required', 'integer', 'min:0'],
+            'subvariants.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'variantRecipes' => ['array'],
             'variantRecipes.*' => ['array'],
             'variantRecipes.*.*.id' => ['nullable', 'integer', 'exists:product_variant_recipes,id', 'distinct'],
@@ -368,6 +392,19 @@ class ProductFormPage extends Component
                 (string) $variant['key'] => [],
             ];
         }
+    }
+
+    public function addSubvariant(): void
+    {
+        $this->subvariants[] = $this->makeEmptySubvariant();
+    }
+
+    public function removeSubvariant(string $subvariantKey): void
+    {
+        $this->subvariants = collect($this->subvariants)
+            ->reject(fn (array $row) => (string) ($row['key'] ?? '') === $subvariantKey)
+            ->values()
+            ->all();
     }
 
     public function addRecipe(string $variantKey): void
@@ -528,6 +565,52 @@ class ProductFormPage extends Component
                     }
                 }
 
+                $subvariants = $validated['subvariants'] ?? [];
+                $keptSubvariantIds = [];
+
+                foreach ($subvariants as $subRow) {
+                    $percent = $subRow['percent'] ?? null;
+                    $price = (float) $subRow['price'];
+
+                    $priceAfterDiscount = null;
+                    if ($percent !== null) {
+                        $priceAfterDiscount = (int) round($price - ($price * ((int) $percent / 100)));
+                    }
+
+                    $subvariantData = [
+                        'product_id' => (int) $product->id,
+                        'product_variant_id' => null,
+                        'name' => $subRow['name'],
+                        'price' => $price,
+                        'percent' => $percent === null ? null : (int) $percent,
+                        'price_afterdiscount' => $priceAfterDiscount,
+                    ];
+
+                    $subvariantId = $subRow['id'] ?? null;
+
+                    if ($subvariantId) {
+                        $subvariant = ProductSubvariant::query()
+                            ->where('product_id', (int) $product->id)
+                            ->whereKey((int) $subvariantId)
+                            ->firstOrFail();
+                        $subvariant->update($subvariantData);
+                        $keptSubvariantIds[] = (int) $subvariant->id;
+                    } else {
+                        $subvariant = ProductSubvariant::query()->create($subvariantData);
+                        $keptSubvariantIds[] = (int) $subvariant->id;
+                    }
+                }
+
+                $existingSubvariantIds = $product->subvariants()
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+                $subvariantIdsToDelete = array_values(array_diff($existingSubvariantIds, $keptSubvariantIds));
+
+                if ($subvariantIdsToDelete !== []) {
+                    $product->subvariants()->whereIn('id', $subvariantIdsToDelete)->delete();
+                }
+
                 $allIngredientIds = array_values(array_unique($allIngredientIds));
                 $ingredientCosts = $allIngredientIds === []
                     ? collect()
@@ -667,6 +750,17 @@ class ProductFormPage extends Component
         ];
     }
 
+    private function makeEmptySubvariant(): array
+    {
+        return [
+            'id' => null,
+            'key' => (string) Str::uuid(),
+            'name' => '',
+            'price' => '',
+            'percent' => null,
+        ];
+    }
+
     private function makeEmptyRecipe(): array
     {
         return [
@@ -739,6 +833,24 @@ class ProductFormPage extends Component
                 if (array_key_exists('ingredient_id', $recipe) && $recipe['ingredient_id'] === '') {
                     $this->variantRecipes[$variantKey][$recipeIndex]['ingredient_id'] = null;
                 }
+            }
+        }
+
+        foreach ($this->subvariants as $subIndex => $subRow) {
+            if (! is_array($subRow)) {
+                continue;
+            }
+
+            if (array_key_exists('id', $subRow) && $subRow['id'] === '') {
+                $this->subvariants[$subIndex]['id'] = null;
+            }
+
+            if (! array_key_exists('key', $subRow) || (string) $subRow['key'] === '') {
+                $this->subvariants[$subIndex]['key'] = (string) Str::uuid();
+            }
+
+            if (array_key_exists('percent', $subRow) && $subRow['percent'] === '') {
+                $this->subvariants[$subIndex]['percent'] = null;
             }
         }
 
@@ -829,6 +941,13 @@ class ProductFormPage extends Component
             $hppByVariantKey[$variantKey] = (int) round($hpp);
         }
 
+        $hppBySubvariantKey = [];
+
+        foreach ($this->subvariants as $subRow) {
+            $subKey = (string) ($subRow['key'] ?? '');
+            $hppBySubvariantKey[$subKey] = 0;
+        }
+
         if ($this->isPackage && $this->packageType === 'simple') {
             $componentHppByVariantId = $componentVariants
                 ->keyBy('id')
@@ -858,6 +977,7 @@ class ProductFormPage extends Component
             'componentVariants' => $componentVariants,
             'componentProducts' => $componentProducts,
             'hppByVariantKey' => $hppByVariantKey,
+            'hppBySubvariantKey' => $hppBySubvariantKey,
             'ingredientUnits' => $ingredientUnits,
             'ingredientCosts' => $ingredientCosts,
         ])->layout('layouts.app', ['title' => $this->title]);

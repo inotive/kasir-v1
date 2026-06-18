@@ -307,6 +307,9 @@
                                                 @if (! empty($item['variant_name']))
                                                     <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ $item['variant_name'] }}</p>
                                                 @endif
+                                                @if (! empty($item['subvariant_name']))
+                                                    <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ $item['subvariant_name'] }}</p>
+                                                @endif
                                                 <div class="mt-1 flex flex-wrap items-center gap-2">
                                                     <span class="text-sm font-semibold text-brand-600 dark:text-brand-400">Rp {{ number_format($price, 0, ',', '.') }}</span>
                                                     @if ($isPromo)
@@ -541,46 +544,86 @@
             <div class="fixed inset-0 bg-black/50" wire:click="$set('variantModalOpen', false)"></div>
             <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
                 <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
-                    <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">Pilih Varian</h3>
+                    <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">
+                        @if (count($subvariantOptions) > 0 && count($variantOptions) > 0)
+                            Pilih Varian / Subvarian
+                        @elseif (count($subvariantOptions) > 0)
+                            Pilih Subvarian
+                        @else
+                            Pilih Varian
+                        @endif
+                    </h3>
                     <button type="button" wire:click="$set('variantModalOpen', false)" class="text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
                         Tutup
                     </button>
                 </div>
-                <div class="p-5">
-                    <div class="space-y-2">
-                        @foreach ($variantOptions as $v)
-                            @php
-                                $isPromo = (int) $v['final_price'] < (int) $v['price'];
-                                $variantId = (int) ($v['id'] ?? 0);
-                                $stockStatus = $variantId > 0 ? ($this->variantStockStatuses[$variantId] ?? null) : null;
-                                $stockBadge = null;
-                                if ($stockStatus === 'missing_bom') {
-                                    $stockBadge = ['label' => 'BOM belum diatur', 'class' => 'bg-gray-900/70 text-white'];
-                                } elseif ($stockStatus === 'insufficient') {
-                                    $stockBadge = ['label' => 'Stok bahan kurang', 'class' => 'bg-error-600 text-white'];
-                                } elseif ($stockStatus === 'low') {
-                                    $stockBadge = ['label' => 'Stok menipis', 'class' => 'bg-warning-600 text-white'];
-                                }
-                            @endphp
-                            <button type="button" wire:click="addVariantToCart({{ (int) $v['id'] }})" class="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-white/[0.03]">
-                                <div class="min-w-0">
-                                    <p class="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{{ $v['name'] }}</p>
-                                    <div class="mt-0.5 flex flex-wrap items-center gap-2">
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">Rp {{ number_format((int) $v['final_price'], 0, ',', '.') }}</p>
-                                        @if ($stockBadge)
-                                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $stockBadge['class'] }}">{{ $stockBadge['label'] }}</span>
-                                        @endif
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    @if ($isPromo)
-                                        <span class="text-xs text-gray-400 line-through">Rp {{ number_format((int) $v['price'], 0, ',', '.') }}</span>
-                                    @endif
-                                    <span class="rounded-lg bg-brand-500 px-2 py-1 text-xs font-semibold text-white">Tambah</span>
-                                </div>
-                            </button>
-                        @endforeach
-                    </div>
+                <div class="custom-scrollbar max-h-[70vh] overflow-y-auto p-5">
+                    @if (count($variantOptions) > 0)
+                        <div class="mb-4">
+                            <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Varian</h4>
+                            <div class="space-y-2">
+                                @foreach ($variantOptions as $v)
+                                    @php
+                                        $isPromo = (int) $v['final_price'] < (int) $v['price'];
+                                        $variantId = (int) ($v['id'] ?? 0);
+                                        $stockStatus = $variantId > 0 ? ($this->variantStockStatuses[$variantId] ?? null) : null;
+                                        $stockBadge = null;
+                                        if ($stockStatus === 'missing_bom') {
+                                            $stockBadge = ['label' => 'BOM belum diatur', 'class' => 'bg-gray-900/70 text-white'];
+                                        } elseif ($stockStatus === 'insufficient') {
+                                            $stockBadge = ['label' => 'Stok bahan kurang', 'class' => 'bg-error-600 text-white'];
+                                        } elseif ($stockStatus === 'low') {
+                                            $stockBadge = ['label' => 'Stok menipis', 'class' => 'bg-warning-600 text-white'];
+                                        }
+                                    @endphp
+                                    <button type="button" wire:click="addVariantToCart({{ (int) $v['id'] }})" class="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-white/[0.03]">
+                                        <div class="min-w-0">
+                                            <p class="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{{ $v['name'] }}</p>
+                                            <div class="mt-0.5 flex flex-wrap items-center gap-2">
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">Rp {{ number_format((int) $v['final_price'], 0, ',', '.') }}</p>
+                                                @if ($stockBadge)
+                                                    <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $stockBadge['class'] }}">{{ $stockBadge['label'] }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            @if ($isPromo)
+                                                <span class="text-xs text-gray-400 line-through">Rp {{ number_format((int) $v['price'], 0, ',', '.') }}</span>
+                                            @endif
+                                            <span class="rounded-lg bg-brand-500 px-2 py-1 text-xs font-semibold text-white">Tambah</span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    @if (count($subvariantOptions) > 0)
+                        <div>
+                            <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Subvarian</h4>
+                            <div class="space-y-2">
+                                @foreach ($subvariantOptions as $sv)
+                                    @php
+                                        $isPromo = (int) $sv['final_price'] < (int) $sv['price'];
+                                    @endphp
+                                    <button type="button" wire:click="addSubvariantToCart({{ (int) $sv['id'] }})" class="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-white/[0.03]">
+                                        <div class="min-w-0">
+                                            <p class="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{{ $sv['name'] }}</p>
+                                            <div class="mt-0.5 flex flex-wrap items-center gap-2">
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">Rp {{ number_format((int) $sv['final_price'], 0, ',', '.') }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            @if ($isPromo)
+                                                <span class="text-xs text-gray-400 line-through">Rp {{ number_format((int) $sv['price'], 0, ',', '.') }}</span>
+                                            @endif
+                                            <span class="rounded-lg bg-brand-500 px-2 py-1 text-xs font-semibold text-white">Tambah</span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

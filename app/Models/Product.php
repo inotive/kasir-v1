@@ -55,6 +55,11 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class);
     }
 
+    public function subvariants(): HasMany
+    {
+        return $this->hasMany(ProductSubvariant::class);
+    }
+
     public function packageItems(): HasMany
     {
         return $this->hasMany(ProductPackageItem::class, 'package_product_id')->orderBy('sort_order');

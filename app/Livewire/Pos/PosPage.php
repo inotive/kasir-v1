@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\DiningTable;
 use App\Models\Member;
 use App\Models\Product;
+use App\Models\ProductSubvariant;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Models\Transaction;
@@ -46,6 +47,8 @@ class PosPage extends Component
     public ?int $variantProductId = null;
 
     public array $variantOptions = [];
+
+    public array $subvariantOptions = [];
 
     public bool $complexPackageModalOpen = false;
 
@@ -486,6 +489,47 @@ class PosPage extends Component
         $this->variantModalOpen = true;
     }
 
+    public function openCombinedModal(int $productId): void
+    {
+        $product = Product::query()->whereKey($productId)->first();
+        if (! $product) {
+            return;
+        }
+
+        $variants = ProductVariant::query()
+            ->where('product_id', $productId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'price', 'price_afterdiscount', 'percent']);
+
+        $subvariants = ProductSubvariant::query()
+            ->where('product_id', $productId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'price', 'price_afterdiscount', 'percent']);
+
+        $this->variantOptions = $variants->map(function (ProductVariant $v) {
+            return [
+                'id' => (int) $v->id,
+                'name' => (string) $v->name,
+                'price' => (int) round((float) $v->price),
+                'final_price' => $this->finalVariantPrice($v),
+                'percent' => $v->percent === null ? null : (int) $v->percent,
+            ];
+        })->all();
+
+        $this->subvariantOptions = $subvariants->map(function (ProductSubvariant $sv) {
+            return [
+                'id' => (int) $sv->id,
+                'name' => (string) $sv->name,
+                'price' => (int) round((float) $sv->price),
+                'final_price' => $this->finalSubvariantPrice($sv),
+                'percent' => $sv->percent === null ? null : (int) $sv->percent,
+            ];
+        })->all();
+
+        $this->variantProductId = (int) $productId;
+        $this->variantModalOpen = true;
+    }
+
     public function addToCart(int $productId): void
     {
         if ($this->cartLocked) {
@@ -500,8 +544,16 @@ class PosPage extends Component
         }
 
         $variantsCount = ProductVariant::query()->where('product_id', $productId)->count();
-        if ($variantsCount <= 0) {
+        $subvariantsCount = ProductSubvariant::query()->where('product_id', $productId)->count();
+
+        if ($variantsCount <= 0 && $subvariantsCount <= 0) {
             $this->dispatch('toast', type: 'error', message: 'Produk belum memiliki varian harga.');
+
+            return;
+        }
+
+        if ($subvariantsCount > 0) {
+            $this->openCombinedModal($productId);
 
             return;
         }
@@ -550,7 +602,7 @@ class PosPage extends Component
 
         $existingIndex = null;
         foreach ($this->cartItems as $i => $item) {
-            if ((int) ($item['variant_id'] ?? 0) === (int) $variant->id) {
+            if ((int) ($item['variant_id'] ?? 0) === (int) $variant->id && (int) ($item['subvariant_id'] ?? 0) === 0) {
                 $existingIndex = $i;
                 break;
             }
@@ -567,11 +619,66 @@ class PosPage extends Component
         $this->cartItems[] = [
             'product_id' => (int) $variant->product->id,
             'variant_id' => (int) $variant->id,
+            'subvariant_id' => 0,
             'name' => (string) $variant->product->name,
             'variant_name' => ItemNameFormatter::displayVariantName((int) $variant->product->id, (string) $variant->name),
+            'subvariant_name' => '',
             'price' => $finalPrice,
             'original_price' => $base,
             'percent' => $variant->percent === null ? null : (int) $variant->percent,
+            'quantity' => 1,
+            'note' => null,
+        ];
+
+        $this->recalculateTotals();
+        $this->variantModalOpen = false;
+    }
+
+    public function addSubvariantToCart(int $subvariantId): void
+    {
+        if ($this->cartLocked) {
+            $this->dispatch('toast', type: 'error', message: 'Pesanan yang dimuat tidak dapat diubah.');
+
+            return;
+        }
+
+        $subvariant = ProductSubvariant::query()
+            ->with('product')
+            ->find($subvariantId);
+
+        if (! $subvariant || ! $subvariant->product) {
+            return;
+        }
+
+        $finalPrice = $this->finalSubvariantPrice($subvariant);
+        $base = (int) round((float) $subvariant->price);
+
+        $existingIndex = null;
+        foreach ($this->cartItems as $i => $item) {
+            if ((int) ($item['product_id'] ?? 0) === (int) $subvariant->product->id && (int) ($item['subvariant_id'] ?? 0) === (int) $subvariant->id) {
+                $existingIndex = $i;
+                break;
+            }
+        }
+
+        if ($existingIndex !== null) {
+            $this->cartItems[$existingIndex]['quantity'] = (int) ($this->cartItems[$existingIndex]['quantity'] ?? 0) + 1;
+            $this->recalculateTotals();
+            $this->variantModalOpen = false;
+
+            return;
+        }
+
+        $this->cartItems[] = [
+            'product_id' => (int) $subvariant->product->id,
+            'variant_id' => 0,
+            'subvariant_id' => (int) $subvariant->id,
+            'name' => (string) $subvariant->product->name,
+            'variant_name' => '',
+            'subvariant_name' => (string) $subvariant->name,
+            'price' => $finalPrice,
+            'original_price' => $base,
+            'percent' => $subvariant->percent === null ? null : (int) $subvariant->percent,
             'quantity' => 1,
             'note' => null,
         ];
@@ -1127,7 +1234,7 @@ class PosPage extends Component
         $this->authorize('transactions.details');
 
         $trx = Transaction::query()
-            ->with(['transactionItems.product', 'transactionItems.variant', 'diningTable'])
+            ->with(['transactionItems.product', 'transactionItems.variant', 'transactionItems.subvariant', 'diningTable'])
             ->whereKey($transactionId)
             ->where('payment_status', 'pending')
             ->whereIn('channel', ['pos', 'self_order'])
@@ -1163,13 +1270,16 @@ class PosPage extends Component
         $this->cartItems = $displayItems->map(function (TransactionItem $item) use ($trx) {
             $name = $item->product ? (string) $item->product->name : 'Produk';
             $variantName = ItemNameFormatter::displayVariantName((int) $item->product_id, $item->variant?->name);
+            $subvariantName = $item->subvariant ? (string) $item->subvariant->name : '';
             $price = (int) round((float) $item->price);
 
             $payload = [
                 'product_id' => (int) $item->product_id,
                 'variant_id' => $item->product_variant_id === null ? 0 : (int) $item->product_variant_id,
+                'subvariant_id' => $item->product_subvariant_id === null ? 0 : (int) $item->product_subvariant_id,
                 'name' => $name,
                 'variant_name' => $variantName,
+                'subvariant_name' => $subvariantName,
                 'price' => $price,
                 'original_price' => $price,
                 'percent' => null,
@@ -1411,18 +1521,20 @@ class PosPage extends Component
             foreach ($this->cartItems as $index => $item) {
                 $productId = (int) ($item['product_id'] ?? 0);
                 $variantId = (int) ($item['variant_id'] ?? 0);
+                $subvariantId = (int) ($item['subvariant_id'] ?? 0);
                 $qty = (int) ($item['quantity'] ?? 0);
                 $price = (int) ($item['price'] ?? 0);
                 $note = $item['note'] ?? null;
 
-                if ($productId <= 0 || $variantId <= 0 || $qty <= 0) {
+                if ($productId <= 0 || ($variantId <= 0 && $subvariantId <= 0) || $qty <= 0) {
                     continue;
                 }
 
                 $parent = TransactionItem::query()->create([
                     'transaction_id' => $trx->id,
                     'product_id' => $productId,
-                    'product_variant_id' => $variantId,
+                    'product_variant_id' => $variantId > 0 ? $variantId : null,
+                    'product_subvariant_id' => $subvariantId > 0 ? $subvariantId : null,
                     'quantity' => $qty,
                     'price' => $price,
                     'subtotal' => $qty * $price,
@@ -1700,18 +1812,20 @@ class PosPage extends Component
             foreach ($this->cartItems as $index => $item) {
                 $productId = (int) ($item['product_id'] ?? 0);
                 $variantId = (int) ($item['variant_id'] ?? 0);
+                $subvariantId = (int) ($item['subvariant_id'] ?? 0);
                 $qty = (int) ($item['quantity'] ?? 0);
                 $price = (int) ($item['price'] ?? 0);
                 $note = $item['note'] ?? null;
 
-                if ($productId <= 0 || $variantId <= 0 || $qty <= 0) {
+                if ($productId <= 0 || ($variantId <= 0 && $subvariantId <= 0) || $qty <= 0) {
                     continue;
                 }
 
                 $parent = TransactionItem::query()->create([
                     'transaction_id' => $trx->id,
                     'product_id' => $productId,
-                    'product_variant_id' => $variantId,
+                    'product_variant_id' => $variantId > 0 ? $variantId : null,
+                    'product_subvariant_id' => $subvariantId > 0 ? $subvariantId : null,
                     'quantity' => $qty,
                     'price' => $price,
                     'subtotal' => $qty * $price,
@@ -2070,7 +2184,7 @@ class PosPage extends Component
         }
 
         $trx = Transaction::query()
-            ->with(['transactionItems.product', 'transactionItems.variant', 'diningTable'])
+            ->with(['transactionItems.product', 'transactionItems.variant', 'transactionItems.subvariant', 'diningTable'])
             ->where('code', $code)
             ->where('payment_status', 'pending')
             ->first();
@@ -2101,13 +2215,16 @@ class PosPage extends Component
         $this->cartItems = $trx->transactionItems->map(function (TransactionItem $item) {
             $name = $item->product ? (string) $item->product->name : 'Produk';
             $variantName = ItemNameFormatter::displayVariantName((int) $item->product_id, $item->variant?->name);
+            $subvariantName = $item->subvariant ? (string) $item->subvariant->name : '';
             $price = (int) round((float) $item->price);
 
             return [
                 'product_id' => (int) $item->product_id,
                 'variant_id' => $item->product_variant_id === null ? 0 : (int) $item->product_variant_id,
+                'subvariant_id' => $item->product_subvariant_id === null ? 0 : (int) $item->product_subvariant_id,
                 'name' => $name,
                 'variant_name' => $variantName,
+                'subvariant_name' => $subvariantName,
                 'price' => $price,
                 'original_price' => $price,
                 'percent' => null,
@@ -2251,6 +2368,24 @@ class PosPage extends Component
         return $base;
     }
 
+    private function finalSubvariantPrice(ProductSubvariant $subvariant): int
+    {
+        $base = (int) round((float) $subvariant->price);
+        $after = $subvariant->price_afterdiscount === null ? null : (int) round((float) $subvariant->price_afterdiscount);
+        if ($after !== null && $after > 0 && $after < $base) {
+            return $after;
+        }
+
+        $percent = $subvariant->percent === null ? 0 : (int) $subvariant->percent;
+        if ($percent > 0 && $percent < 100) {
+            $computed = (int) round($base - ($base * ($percent / 100)));
+
+            return max(0, $computed);
+        }
+
+        return $base;
+    }
+
     private function applyVariantPricesToCartItems(): void
     {
         $variantIds = collect($this->cartItems)
@@ -2261,15 +2396,29 @@ class PosPage extends Component
             ->values()
             ->all();
 
-        if ($variantIds === []) {
+        $subvariantIds = collect($this->cartItems)
+            ->filter(fn ($row) => is_array($row))
+            ->map(fn (array $row) => (int) ($row['subvariant_id'] ?? 0))
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($variantIds === [] && $subvariantIds === []) {
             $this->cartItems = [];
 
             return;
         }
 
-        $variants = ProductVariant::query()
+        $variants = $variantIds === [] ? collect() : ProductVariant::query()
             ->with('product')
             ->whereIn('id', $variantIds)
+            ->get()
+            ->keyBy('id');
+
+        $subvariants = $subvariantIds === [] ? collect() : ProductSubvariant::query()
+            ->with('product')
+            ->whereIn('id', $subvariantIds)
             ->get()
             ->keyBy('id');
 
@@ -2280,33 +2429,60 @@ class PosPage extends Component
             }
 
             $variantId = (int) ($row['variant_id'] ?? 0);
+            $subvariantId = (int) ($row['subvariant_id'] ?? 0);
             $qty = (int) ($row['quantity'] ?? 0);
 
-            if ($variantId <= 0 || $qty <= 0) {
+            if ($qty <= 0) {
                 continue;
             }
 
-            $variant = $variants->get($variantId);
-            if (! $variant || ! $variant->product) {
-                continue;
+            if ($subvariantId > 0) {
+                $subvariant = $subvariants->get($subvariantId);
+                if (! $subvariant || ! $subvariant->product) {
+                    continue;
+                }
+
+                $final = $this->finalSubvariantPrice($subvariant);
+                $base = (int) round((float) $subvariant->price);
+
+                $row['product_id'] = (int) $subvariant->product->id;
+                $row['name'] = (string) $subvariant->product->name;
+                $row['variant_name'] = '';
+                $row['subvariant_name'] = (string) $subvariant->name;
+                $row['price'] = $final;
+                $row['original_price'] = $base;
+                $row['percent'] = $subvariant->percent === null ? null : (int) $subvariant->percent;
+                $row['quantity'] = $qty;
+
+                if (array_key_exists('note', $row) && $row['note'] === '') {
+                    $row['note'] = null;
+                }
+
+                $normalized[] = $row;
+            } elseif ($variantId > 0) {
+                $variant = $variants->get($variantId);
+                if (! $variant || ! $variant->product) {
+                    continue;
+                }
+
+                $final = $this->finalVariantPrice($variant);
+                $base = (int) round((float) $variant->price);
+
+                $row['product_id'] = (int) $variant->product->id;
+                $row['name'] = (string) $variant->product->name;
+                $row['variant_name'] = ItemNameFormatter::displayVariantName((int) $variant->product->id, (string) $variant->name);
+                $row['subvariant_name'] = '';
+                $row['price'] = $final;
+                $row['original_price'] = $base;
+                $row['percent'] = $variant->percent === null ? null : (int) $variant->percent;
+                $row['quantity'] = $qty;
+
+                if (array_key_exists('note', $row) && $row['note'] === '') {
+                    $row['note'] = null;
+                }
+
+                $normalized[] = $row;
             }
-
-            $final = $this->finalVariantPrice($variant);
-            $base = (int) round((float) $variant->price);
-
-            $row['product_id'] = (int) $variant->product->id;
-            $row['name'] = (string) $variant->product->name;
-            $row['variant_name'] = ItemNameFormatter::displayVariantName((int) $variant->product->id, (string) $variant->name);
-            $row['price'] = $final;
-            $row['original_price'] = $base;
-            $row['percent'] = $variant->percent === null ? null : (int) $variant->percent;
-            $row['quantity'] = $qty;
-
-            if (array_key_exists('note', $row) && $row['note'] === '') {
-                $row['note'] = null;
-            }
-
-            $normalized[] = $row;
         }
 
         $this->cartItems = array_values($normalized);
@@ -2315,7 +2491,7 @@ class PosPage extends Component
     private function reloadCartItemsFromTransaction(int $transactionId): void
     {
         $trx = Transaction::query()
-            ->with(['transactionItems.product', 'transactionItems.variant'])
+            ->with(['transactionItems.product', 'transactionItems.variant', 'transactionItems.subvariant'])
             ->whereKey($transactionId)
             ->where('payment_status', 'pending')
             ->first();
@@ -2331,13 +2507,16 @@ class PosPage extends Component
         $this->cartItems = $displayItems->map(function (TransactionItem $item) use ($trx) {
             $name = $item->product ? (string) $item->product->name : 'Produk';
             $variantName = ItemNameFormatter::displayVariantName((int) $item->product_id, $item->variant?->name);
+            $subvariantName = $item->subvariant ? (string) $item->subvariant->name : '';
             $price = (int) round((float) $item->price);
 
             $payload = [
                 'product_id' => (int) $item->product_id,
                 'variant_id' => $item->product_variant_id === null ? 0 : (int) $item->product_variant_id,
+                'subvariant_id' => $item->product_subvariant_id === null ? 0 : (int) $item->product_subvariant_id,
                 'name' => $name,
                 'variant_name' => $variantName,
+                'subvariant_name' => $subvariantName,
                 'price' => $price,
                 'original_price' => $price,
                 'percent' => null,

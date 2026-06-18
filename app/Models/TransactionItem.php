@@ -13,6 +13,7 @@ class TransactionItem extends Model
         'parent_transaction_item_id',
         'product_id',
         'product_variant_id',
+        'product_subvariant_id',
         'quantity',
         'price',
         'hpp_unit',
@@ -34,6 +35,7 @@ class TransactionItem extends Model
             'voucher_discount_amount' => 'integer',
             'manual_discount_amount' => 'integer',
             'parent_transaction_item_id' => 'integer',
+            'product_subvariant_id' => 'integer',
         ];
     }
 
@@ -50,6 +52,11 @@ class TransactionItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    public function subvariant(): BelongsTo
+    {
+        return $this->belongsTo(ProductSubvariant::class, 'product_subvariant_id');
     }
 
     public function parentTransactionItem(): BelongsTo

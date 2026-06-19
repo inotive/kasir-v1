@@ -307,9 +307,6 @@
                                                 @if (! empty($item['variant_name']))
                                                     <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ $item['variant_name'] }}</p>
                                                 @endif
-                                                @if (! empty($item['subvariant_name']))
-                                                    <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ $item['subvariant_name'] }}</p>
-                                                @endif
                                                 @if (! empty($item['addons']))
                                                     <div class="mt-1 flex flex-wrap gap-1">
                                                         @foreach ($item['addons'] as $addon)
@@ -657,13 +654,7 @@
                 @else
                     <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
                         <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">
-                            @if (count($subvariantOptions) > 0 && count($variantOptions) > 0)
-                                Pilih Varian / Subvarian
-                            @elseif (count($subvariantOptions) > 0)
-                                Pilih Subvarian
-                            @else
-                                Pilih Varian
-                            @endif
+                            Pilih Varian
                         </h3>
                         <button type="button" wire:click="closeVariantModal" class="text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
                             Tutup
@@ -710,32 +701,7 @@
                             </div>
                         @endif
 
-                        @if (count($subvariantOptions) > 0)
-                            <div>
-                                <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Subvarian</h4>
-                                <div class="space-y-2">
-                                    @foreach ($subvariantOptions as $sv)
-                                        @php
-                                            $isPromo = (int) $sv['final_price'] < (int) $sv['price'];
-                                        @endphp
-                                        <button type="button" wire:click="addSubvariantToCart({{ (int) $sv['id'] }})" class="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-white/[0.03]">
-                                            <div class="min-w-0">
-                                                <p class="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{{ $sv['name'] }}</p>
-                                                <div class="mt-0.5 flex flex-wrap items-center gap-2">
-                                                    <p class="text-xs text-gray-500 dark:text-gray-400">Rp {{ number_format((int) $sv['final_price'], 0, ',', '.') }}</p>
-                                                </div>
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                                @if ($isPromo)
-                                                    <span class="text-xs text-gray-400 line-through">Rp {{ number_format((int) $sv['price'], 0, ',', '.') }}</span>
-                                                @endif
-                                                <span class="rounded-lg bg-brand-500 px-2 py-1 text-xs font-semibold text-white">Tambah</span>
-                                            </div>
-                                        </button>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
+
                     </div>
                 @endif
             </div>

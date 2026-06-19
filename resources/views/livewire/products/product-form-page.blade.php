@@ -16,9 +16,7 @@
         :complex-package-items="$complexPackageItems"
         :variants="$variants"
         :variant-recipes="$variantRecipes"
-        :subvariants="$subvariants"
         :hpp-by-variant-key="$hppByVariantKey"
-        :hpp-by-subvariant-key="$hppBySubvariantKey"
         :all-addons="$allAddons"
         :selected-addon-ids="$selectedAddonIds"
     />

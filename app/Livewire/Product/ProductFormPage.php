@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Product;
 
+use App\Models\Addon;
 use App\Models\Category;
 use App\Models\Ingredient;
 use App\Models\PrinterSource;
@@ -62,6 +63,8 @@ class ProductFormPage extends Component
 
     public array $complexPackageItems = [];
 
+    public array $selectedAddonIds = [];
+
     protected array $validationAttributes = [
         'variantRecipes.*.*.ingredient_id' => 'Bahan baku',
         'variantRecipes.*.*.quantity' => 'Qty / porsi',
@@ -92,7 +95,7 @@ class ProductFormPage extends Component
             return;
         }
 
-        $product->load(['variants.recipes', 'subvariants', 'packageItems.componentVariant.product', 'complexPackageItems.componentProduct']);
+        $product->load(['variants.recipes', 'subvariants', 'packageItems.componentVariant.product', 'complexPackageItems.componentProduct', 'addons']);
 
         $this->productId = (int) $product->id;
         $this->title = 'Edit Produk';
@@ -189,6 +192,8 @@ class ProductFormPage extends Component
             ])
             ->values()
             ->all();
+
+        $this->selectedAddonIds = $product->addons->pluck('id')->map(fn ($id) => (int) $id)->toArray();
     }
 
     protected function rules(): array
@@ -430,9 +435,35 @@ class ProductFormPage extends Component
             return;
         }
 
-        $this->variantRecipes[$variantKey] = collect($this->variantRecipes[$variantKey])
-            ->reject(fn (array $recipe) => (string) ($recipe['key'] ?? '') === $recipeKey)
+            $this->variantRecipes[$variantKey] = collect($this->variantRecipes[$variantKey])
+                ->reject(fn (array $recipe) => (string) ($recipe['key'] ?? '') === $recipeKey)
+                ->all();
+    }
+
+    public function toggleCategoryAddons(string $categoryName): void
+    {
+        $category = \App\Models\AddonCategory::where('name', $categoryName)->first();
+        if (! $category) {
+            return;
+        }
+
+        $addonIds = \App\Models\Addon::where('addon_category_id', $category->id)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
             ->all();
+
+        if (empty($addonIds)) {
+            return;
+        }
+
+        $selectedInCategory = array_values(array_intersect($this->selectedAddonIds, $addonIds));
+
+        if (count($selectedInCategory) === count($addonIds)) {
+            $this->selectedAddonIds = array_values(array_diff($this->selectedAddonIds, $addonIds));
+        } else {
+            $this->selectedAddonIds = array_values(array_unique(array_merge($this->selectedAddonIds, $addonIds)));
+        }
     }
 
     public function save(): void
@@ -475,6 +506,8 @@ class ProductFormPage extends Component
                 if ($this->productId === null) {
                     $this->productId = (int) $product->id;
                 }
+
+                $product->addons()->sync($this->selectedAddonIds);
 
                 $keptVariantIds = [];
                 $variantKeyToId = [];
@@ -925,6 +958,13 @@ class ProductFormPage extends Component
         $ingredientCosts = $ingredients->pluck('cost_price', 'id')->map(fn ($v) => (float) $v)->all();
         $ingredientUnits = $ingredients->pluck('unit', 'id')->map(fn ($v) => (string) $v)->all();
 
+        $allAddons = Addon::query()
+            ->where('is_available', true)
+            ->with('addonCategory')
+            ->orderBy('name')
+            ->get()
+            ->groupBy(fn ($a) => $a->addonCategory?->name ?? 'Lainnya');
+
         $hppByVariantKey = [];
 
         foreach ($this->variants as $variant) {
@@ -980,6 +1020,7 @@ class ProductFormPage extends Component
             'hppBySubvariantKey' => $hppBySubvariantKey,
             'ingredientUnits' => $ingredientUnits,
             'ingredientCosts' => $ingredientCosts,
+            'allAddons' => $allAddons,
         ])->layout('layouts.app', ['title' => $this->title]);
     }
 }

@@ -18,6 +18,8 @@
     'subvariants' => [],
     'hppByVariantKey' => [],
     'hppBySubvariantKey' => [],
+    'allAddons' => [],
+    'selectedAddonIds' => [],
 ])
 
 @php
@@ -700,6 +702,67 @@
                         </div>
                     @endforelse
                 </div>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+                <h3 class="text-lg font-medium text-gray-800 dark:text-white">Add-on Produk</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Pilih add-on yang tersedia untuk produk ini.</p>
+            </div>
+            <div class="p-4 sm:p-6">
+                @if ($allAddons->isEmpty())
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada add-on yang tersedia. <a href="{{ route('addons.index') }}" class="text-brand-500 hover:underline" wire:navigate>Buat add-on</a></p>
+                @else
+                    <div class="space-y-4">
+                        @foreach ($allAddons as $categoryName => $addons)
+                            @php
+                                $addonIds = $addons->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+                                $selectedCount = count(array_intersect($selectedAddonIds, $addonIds));
+                                $totalCount = count($addonIds);
+                                $allSelected = $selectedCount === $totalCount;
+                            @endphp
+                            <div class="rounded-xl border border-gray-200 dark:border-gray-700">
+                                <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-2.5 dark:border-gray-700 dark:bg-gray-800/50">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ $categoryName }}</span>
+                                        <span class="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400">{{ $selectedCount }}/{{ $totalCount }}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        wire:click="toggleCategoryAddons('{{ addslashes($categoryName) }}')"
+                                        class="text-xs font-medium transition {{ $allSelected ? 'text-brand-600 hover:text-brand-700 dark:text-brand-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300' }}"
+                                    >
+                                        {{ $allSelected ? 'Batal Pilih' : 'Pilih Semua' }}
+                                    </button>
+                                </div>
+                                <div class="flex flex-wrap gap-2 p-3">
+                                    @foreach ($addons as $addon)
+                                        @php
+                                            $isSelected = in_array((int) $addon->id, $selectedAddonIds);
+                                        @endphp
+                                        <label class="inline-flex items-center gap-2 rounded-lg border-2 px-3.5 py-2.5 text-sm font-medium transition cursor-pointer
+                                            {{ $isSelected
+                                                ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
+                                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300' }}">
+                                            <input
+                                                type="checkbox"
+                                                value="{{ $addon->id }}"
+                                                wire:model.live="selectedAddonIds"
+                                                class="hidden"
+                                            />
+                                            @if ($isSelected)
+                                                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            @endif
+                                            <span>{{ $addon->name }}</span>
+                                            <span class="{{ $isSelected ? 'opacity-80' : 'opacity-60' }} text-xs">Rp{{ number_format($addon->price, 0, ',', '.') }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
 

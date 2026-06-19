@@ -7,7 +7,11 @@
                     $hasDiscount = isset($item["price_afterdiscount"]) && (int) $item["price_afterdiscount"] > 0 && (int) $item["price_afterdiscount"] < (int) $item["price"];
                     $displayPrice = $hasDiscount ? (int) $item["price_afterdiscount"] : (int) $item["price"];
                     $qty = (int) ($item['quantity'] ?? 0);
-                    $lineTotal = max(0, $displayPrice) * max(0, $qty);
+                    $addonTotal = 0;
+                    foreach (($item['addons'] ?? []) as $addon) {
+                        $addonTotal += (int) ($addon['price'] ?? 0) * (int) ($addon['quantity'] ?? 1);
+                    }
+                    $lineTotal = max(0, $displayPrice) * max(0, $qty) + $addonTotal * max(0, $qty);
                 @endphp
 
                 <div class="flex items-start gap-3">
@@ -60,7 +64,16 @@
                                         <span class="text-[11px] text-gray-400 line-through">
                                             Rp{{ number_format($item["price"], 0, ",", ".") }}
                                         </span>
-                                    @endif
+                                @endif
+                                @if (! empty($item['addons']))
+                                    <div class="mt-1 flex flex-wrap gap-1.5">
+                                        @foreach ($item['addons'] as $addon)
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
+                                                {{ $addon['name'] }} {{ (int) ($addon['quantity'] ?? 1) }}x +Rp{{ number_format((int) ($addon['price'] ?? 0) * (int) ($addon['quantity'] ?? 1) * $qty, 0, ',', '.') }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @endif
                                 </div>
                                 <p class="mt-0.5 text-[11px] text-gray-500">
                                     Total: <span class="font-semibold text-gray-700">Rp{{ number_format($lineTotal, 0, ",", ".") }}</span>

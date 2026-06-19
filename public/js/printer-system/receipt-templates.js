@@ -143,6 +143,16 @@ if (!window.ReceiptTemplates) {
                     
                     receipt += this.formatItem(fullName, qty, price) + "\n";
                     total += qty * price;
+
+                    if (item.addons && Array.isArray(item.addons) && item.addons.length > 0) {
+                        item.addons.forEach(addon => {
+                            const addonName = addon.name || 'Add-on';
+                            const addonPrice = addon.price || 0;
+                            const addonQty = addon.quantity || 1;
+                            receipt += this.formatItem(`  + ${addonName}`, addonQty, addonPrice) + "\n";
+                            total += addonQty * addonPrice;
+                        });
+                    }
                 });
             }
 
@@ -499,6 +509,11 @@ if (!window.ReceiptTemplates) {
                     receipt += `${item.quantity} x ${fullName}\n`;
                     if (item.note) {
                         receipt += `   Catatan: ${item.note}\n`;
+                    }
+                    if (item.addons && Array.isArray(item.addons) && item.addons.length > 0) {
+                        item.addons.forEach(addon => {
+                            receipt += `   + ${addon.quantity || 1}x ${addon.name || 'Add-on'}\n`;
+                        });
                     }
                     receipt += "\n";
                 });

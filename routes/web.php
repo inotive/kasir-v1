@@ -25,6 +25,7 @@ use App\Livewire\Inventory\SuppliersPage;
 use App\Livewire\Members\MemberRegionsPage;
 use App\Livewire\Members\MembersPage;
 use App\Livewire\Pos\PosPage;
+use App\Livewire\Product\AddonsPage;
 use App\Livewire\Product\ProductFormPage;
 use App\Livewire\Product\ProductsPage;
 use App\Livewire\Reports\ManualDiscountReportPage;
@@ -258,6 +259,7 @@ if ($adminDomain !== '') {
             Route::get('/products', ProductsPage::class)->middleware('permission:products.view')->name('products.index');
             Route::get('/products/create', ProductFormPage::class)->middleware('permission:products.create')->name('products.create');
             Route::get('/products/{product}/edit', ProductFormPage::class)->middleware('permission:products.edit')->name('products.edit');
+            Route::get('/addons', AddonsPage::class)->middleware('permission:products.view')->name('addons.index');
 
             Route::get('/dining-tables', DiningTablesPage::class)->middleware('permission:dining_tables.view')->name('dining-tables.index');
 
@@ -459,6 +461,7 @@ if ($adminDomain !== '') {
             Route::get('/products', ProductsPage::class)->middleware('permission:products.view')->name('products.index');
             Route::get('/products/create', ProductFormPage::class)->middleware('permission:products.create')->name('products.create');
             Route::get('/products/{product}/edit', ProductFormPage::class)->middleware('permission:products.edit')->name('products.edit');
+            Route::get('/addons', AddonsPage::class)->middleware('permission:products.view')->name('addons.index');
 
             Route::get('/dining-tables', DiningTablesPage::class)->middleware('permission:dining_tables.view')->name('dining-tables.index');
 

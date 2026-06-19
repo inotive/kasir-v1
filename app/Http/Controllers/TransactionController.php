@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
+use App\Models\TransactionItemAddon;
 use App\Models\VoucherCode;
 use App\Models\VoucherRedemption;
 use App\Services\PriceService;
@@ -186,7 +187,14 @@ class TransactionController extends Controller
             $grossSubtotal = 0;
             foreach ($cartItems as $item) {
                 $price = (isset($item['price_afterdiscount']) && (int) $item['price_afterdiscount'] > 0 && (int) $item['price_afterdiscount'] < (int) $item['price']) ? (int) $item['price_afterdiscount'] : (int) $item['price'];
-                $grossSubtotal += $price * ($item['quantity'] ?? 1);
+                $itemQty = (int) ($item['quantity'] ?? 1);
+                $grossSubtotal += $price * $itemQty;
+                $addons = $item['addons'] ?? [];
+                foreach ($addons as $addon) {
+                    $addonPrice = (int) ($addon['price'] ?? 0);
+                    $addonQty = (int) ($addon['quantity'] ?? 1);
+                    $grossSubtotal += $addonPrice * $addonQty * $itemQty;
+                }
             }
 
             $voucher = $this->resolveVoucherForCart($cartItems, $memberId, (string) $phone);
@@ -302,6 +310,23 @@ class TransactionController extends Controller
                         'voucher_discount_amount' => (int) ($allocations[$index] ?? 0),
                         'note' => $cartItem['note'] ?? null,
                     ]);
+
+                    $addons = $cartItem['addons'] ?? [];
+                    foreach ($addons as $addon) {
+                        $addonId = (int) ($addon['id'] ?? 0);
+                        $addonPrice = (int) ($addon['price'] ?? 0);
+                        $addonQty = (int) ($addon['quantity'] ?? 1);
+                        $itemQty = (int) ($cartItem['quantity'] ?? 1);
+                        if ($addonId > 0) {
+                            TransactionItemAddon::query()->create([
+                                'transaction_item_id' => (int) $parent->id,
+                                'addon_id' => $addonId,
+                                'name' => $addon['name'],
+                                'quantity' => $addonQty * $itemQty,
+                                'price' => $addonPrice,
+                            ]);
+                        }
+                    }
 
                     $productId = (int) $cartItem['id'];
                     $product = $productsById->get($productId);
@@ -442,6 +467,12 @@ class TransactionController extends Controller
                 $price = (isset($item['price_afterdiscount']) && (int) $item['price_afterdiscount'] > 0 && (int) $item['price_afterdiscount'] < (int) $item['price']) ? (int) $item['price_afterdiscount'] : (int) $item['price'];
                 $qty = (int) ($item['quantity'] ?? 1);
                 $grossSubtotal += $price * $qty;
+                $addons = $item['addons'] ?? [];
+                foreach ($addons as $addon) {
+                    $addonPrice = (int) ($addon['price'] ?? 0);
+                    $addonQty = (int) ($addon['quantity'] ?? 1);
+                    $grossSubtotal += $addonPrice * $addonQty * $qty;
+                }
             }
 
             $voucher = $this->resolveVoucherForCart($cartItems, $memberId, (string) $phone);
@@ -629,6 +660,23 @@ class TransactionController extends Controller
                         'voucher_discount_amount' => (int) ($allocations[$index] ?? 0),
                         'note' => $cartItem['note'] ?? null,
                     ]);
+
+                    $addons = $cartItem['addons'] ?? [];
+                    foreach ($addons as $addon) {
+                        $addonId = (int) ($addon['id'] ?? 0);
+                        $addonPrice = (int) ($addon['price'] ?? 0);
+                        $addonQty = (int) ($addon['quantity'] ?? 1);
+                        $itemQty = (int) ($cartItem['quantity'] ?? 1);
+                        if ($addonId > 0) {
+                            TransactionItemAddon::query()->create([
+                                'transaction_item_id' => (int) $parent->id,
+                                'addon_id' => $addonId,
+                                'name' => $addon['name'],
+                                'quantity' => $addonQty * $itemQty,
+                                'price' => $addonPrice,
+                            ]);
+                        }
+                    }
 
                     $productId = (int) ($cartItem['id'] ?? 0);
                     $product = $productsById->get($productId);

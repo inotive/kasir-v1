@@ -78,7 +78,16 @@ trait CartManagement
             $hasDiscount = isset($item['price_afterdiscount']) && (int) $item['price_afterdiscount'] > 0 && (int) $item['price_afterdiscount'] < (int) $item['price'];
             $price = $hasDiscount ? (int) $item['price_afterdiscount'] : (int) $item['price'];
 
-            return $price * (int) $item['quantity'];
+            $itemTotal = $price * (int) $item['quantity'];
+
+            $addons = $item['addons'] ?? [];
+            foreach ($addons as $addon) {
+                $addonPrice = (int) ($addon['price'] ?? 0);
+                $addonQty = (int) ($addon['quantity'] ?? 1);
+                $itemTotal += $addonPrice * $addonQty * (int) $item['quantity'];
+            }
+
+            return $itemTotal;
         }, $this->cartItems));
 
         $setting = Setting::current();

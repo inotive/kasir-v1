@@ -68,4 +68,9 @@ class TransactionItem extends Model
     {
         return $this->hasMany(self::class, 'parent_transaction_item_id');
     }
+
+    public function itemAddons(): HasMany
+    {
+        return $this->hasMany(TransactionItemAddon::class);
+    }
 }

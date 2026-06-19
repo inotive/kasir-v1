@@ -489,6 +489,7 @@ class TransactionShowPage extends Component
                 'manualDiscountByUser',
                 'transactionItems.product',
                 'transactionItems.variant',
+                'transactionItems.itemAddons.addon',
                 'events' => fn ($q) => $q->latest(),
                 'events.actor',
             ])

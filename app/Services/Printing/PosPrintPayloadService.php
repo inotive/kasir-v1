@@ -36,7 +36,7 @@ class PosPrintPayloadService
     public function build(int $transactionId, ?string $cashierName = null): ?array
     {
         $trx = Transaction::query()
-            ->with(['transactionItems.product.printerSource', 'transactionItems.variant', 'diningTable'])
+            ->with(['transactionItems.product.printerSource', 'transactionItems.variant', 'transactionItems.itemAddons.addon', 'diningTable'])
             ->whereKey($transactionId)
             ->first();
 
@@ -82,6 +82,11 @@ class PosPrintPayloadService
                 'note' => $item->note,
                 'name' => $productName,
                 'variant_name' => $variantName,
+                'addons' => $item->itemAddons->map(fn ($ia) => [
+                    'name' => $ia->addon ? (string) $ia->addon->name : 'Add-on',
+                    'price' => (int) round((float) $ia->price),
+                    'quantity' => (int) $ia->quantity,
+                ])->values()->all(),
                 'product' => [
                     'name' => $productName,
                     'printer_source_id' => $item->product?->printer_source_id,

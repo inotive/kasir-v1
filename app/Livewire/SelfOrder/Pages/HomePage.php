@@ -3,6 +3,7 @@
 namespace App\Livewire\SelfOrder\Pages;
 
 use App\Livewire\SelfOrder\Components\CartBadge;
+use App\Models\Addon;
 use App\Models\Category;
 use App\Models\DiningTable;
 use App\Models\Product;
@@ -55,7 +56,7 @@ class HomePage extends Component
     public function openProductVariants(int $productId): void
     {
         $product = Product::query()
-            ->with(['packageItems.componentVariant.product'])
+            ->with(['packageItems.componentVariant.product', 'addons.addonCategory'])
             ->where('id', $productId)
             ->where('is_available', true)
             ->first();
@@ -101,8 +102,43 @@ class HomePage extends Component
                         'variant_name' => $variantName,
                     ];
                 })
+                    ->values()
+                    ->all();
+        }
+
+        if ($product->addons->isNotEmpty()) {
+            $dispatchParams['addonGroups'] = $product->addons
+                ->groupBy(fn ($a) => $a->addonCategory?->name ?? 'Lainnya')
+                ->map(fn ($addons, $categoryName) => [
+                    'category' => $categoryName,
+                    'items' => $addons->map(fn ($a) => [
+                        'id' => (int) $a->id,
+                        'name' => (string) $a->name,
+                        'price' => (int) round((float) $a->price),
+                    ])->values()->all(),
+                ])
                 ->values()
                 ->all();
+
+            $allAddons = $product->addons
+                ->sortBy('name')
+                ->values()
+                ->map(fn ($a) => [
+                    'id' => (int) $a->id,
+                    'name' => (string) $a->name,
+                    'price' => (int) round((float) $a->price),
+                    'category' => (string) ($a->addonCategory?->name ?? 'Lainnya'),
+                ])
+                ->values()
+                ->all();
+
+            $dispatchParams['allAddons'] = $allAddons;
+        }
+
+        if (count($this->variantOptions) === 1 && $product->addons->isEmpty()) {
+            $this->addVariantToCart((int) $this->variantOptions[0]['id']);
+
+            return;
         }
 
         if (count($this->variantOptions) === 1) {
@@ -112,7 +148,7 @@ class HomePage extends Component
         $this->dispatch('open-variant-modal', ...$dispatchParams);
     }
 
-    public function addVariantToCart(int $variantId, int $quantity = 1): void
+    public function addVariantToCart(int $variantId, int $quantity = 1, array $addonData = []): void
     {
         $qty = max(1, $quantity);
 
@@ -137,6 +173,25 @@ class HomePage extends Component
             }
         }
 
+        // Load selected addons from DB with quantities from frontend
+        $selectedAddons = [];
+        if (! empty($addonData)) {
+            $addonIds = collect($addonData)->pluck('id')->all();
+            $addonsById = Addon::query()->whereIn('id', $addonIds)->get()->keyBy('id');
+            foreach ($addonData as $data) {
+                $a = $addonsById->get((int) ($data['id'] ?? 0));
+                if (! $a) {
+                    continue;
+                }
+                $selectedAddons[] = [
+                    'id' => (int) $a->id,
+                    'name' => (string) $a->name,
+                    'price' => (int) round((float) $a->price),
+                    'quantity' => max(1, (int) ($data['quantity'] ?? 1)),
+                ];
+            }
+        }
+
         $variantDisplay = ItemNameFormatter::displayVariantName((int) $variant->product_id, (string) $variant->name);
         $itemName = (string) $variant->product->name.($variantDisplay !== '' ? ' - '.$variantDisplay : '');
         $cartItems = session('cart_items', []);
@@ -144,8 +199,17 @@ class HomePage extends Component
             $cartItems = [];
         }
 
-        $existingItemIndex = collect($cartItems)->search(function ($i) use ($variantId, $variant) {
-            return ((int) ($i['id'] ?? 0)) === (int) $variant->product_id && ((int) ($i['variant_id'] ?? 0)) === (int) $variantId;
+        $existingItemIndex = collect($cartItems)->search(function ($i) use ($variantId, $variant, $selectedAddons) {
+            $match = ((int) ($i['id'] ?? 0)) === (int) $variant->product_id && ((int) ($i['variant_id'] ?? 0)) === (int) $variantId;
+            if (! $match) {
+                return false;
+            }
+            // Only merge if addons are the same
+            $existingAddonIds = array_column($i['addons'] ?? [], 'id');
+            $newAddonIds = array_column($selectedAddons, 'id');
+            sort($existingAddonIds);
+            sort($newAddonIds);
+            return $existingAddonIds === $newAddonIds;
         });
 
         $payload = [
@@ -159,6 +223,7 @@ class HomePage extends Component
             'selected' => true,
             'note' => '',
             'variant_id' => (int) $variantId,
+            'addons' => $selectedAddons,
         ];
 
         if ($existingItemIndex !== false) {

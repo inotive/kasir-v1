@@ -17,5 +17,7 @@
         :variants="$variants"
         :variant-recipes="$variantRecipes"
         :hpp-by-variant-key="$hppByVariantKey"
+        :all-addons="$allAddons"
+        :selected-addon-ids="$selectedAddonIds"
     />
 </div>

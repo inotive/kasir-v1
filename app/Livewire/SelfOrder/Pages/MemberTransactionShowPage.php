@@ -37,6 +37,7 @@ class MemberTransactionShowPage extends Component
                     $q->with([
                         'product:id,name',
                         'variant:id,name',
+                        'itemAddons.addon:id,name',
                         'childTransactionItems.product:id,name',
                         'childTransactionItems.variant:id,name',
                     ])->orderBy('id');

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
@@ -55,6 +56,11 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class);
     }
 
+    public function subvariants(): HasMany
+    {
+        return $this->hasMany(ProductSubvariant::class);
+    }
+
     public function packageItems(): HasMany
     {
         return $this->hasMany(ProductPackageItem::class, 'package_product_id')->orderBy('sort_order');
@@ -63,6 +69,11 @@ class Product extends Model
     public function complexPackageItems(): HasMany
     {
         return $this->hasMany(ProductComplexPackageItem::class, 'package_product_id')->orderBy('sort_order');
+    }
+
+    public function addons(): BelongsToMany
+    {
+        return $this->belongsToMany(Addon::class, 'product_addons');
     }
 
     public function recipes(): HasMany

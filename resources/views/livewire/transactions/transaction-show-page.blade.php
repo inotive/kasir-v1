@@ -250,6 +250,15 @@
                                                 @endforeach
                                             </div>
                                         @endif
+                                        @if ($item->itemAddons->isNotEmpty())
+                                            <div class="mt-1 flex flex-wrap gap-1">
+                                                @foreach ($item->itemAddons as $ia)
+                                                    <span class="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                                                        {{ $ia->addon?->name ?? 'Add-on' }} {{ $ia->quantity }}x +{{ $fmtCurrency((float) ($ia->price * $ia->quantity)) }}
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 </td>
                                 <td class="px-5 py-4">

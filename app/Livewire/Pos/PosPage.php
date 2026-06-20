@@ -3,6 +3,8 @@
 namespace App\Livewire\Pos;
 
 use App\Events\SelfOrderPaymentUpdated;
+use App\Models\Addon;
+use App\Models\AddonCategory;
 use App\Models\Category;
 use App\Models\DiningTable;
 use App\Models\Member;
@@ -12,6 +14,7 @@ use App\Models\Setting;
 use App\Models\Transaction;
 use App\Models\TransactionEvent;
 use App\Models\TransactionItem;
+use App\Models\TransactionItemAddon;
 use App\Models\VoucherCode;
 use App\Models\VoucherRedemption;
 use App\Services\Inventory\VariantIngredientStockStatusService;
@@ -54,6 +57,18 @@ class PosPage extends Component
     public array $complexPackageComponents = [];
 
     public ?int $editingComplexPackageCartIndex = null;
+
+    public string $addonSearch = '';
+
+    public array $addonSearchResults = [];
+
+    public int $addonPage = 1;
+
+    public bool $addonHasMore = false;
+
+    public array $selectedAddonsWithQty = [];
+
+    public ?array $pendingVariantForAddon = null;
 
     public array $cartItems = [];
 
@@ -138,6 +153,8 @@ class PosPage extends Component
     public string $customerName = '';
 
     public ?string $customerPhone = null;
+
+    public string $customerType = 'walk_in';
 
     public string $paymentMethod = 'cash';
 
@@ -269,6 +286,19 @@ class PosPage extends Component
         }
 
         $this->recalculateTotals();
+    }
+
+    public function updatedCustomerType(): void
+    {
+        if ($this->customerType === 'walk_in') {
+            $this->memberId = null;
+            $this->memberPoints = 0;
+            $this->redeemPoints = false;
+            $this->pointsToRedeem = 0;
+        } else {
+            $this->customerName = '';
+            $this->customerPhone = null;
+        }
     }
 
     public function updatedManualDiscountType(): void
@@ -435,7 +465,10 @@ class PosPage extends Component
 
     public function openVariantModal(int $productId): void
     {
-        $product = Product::query()->whereKey($productId)->first();
+        $product = Product::query()
+            ->with('addons')
+            ->whereKey($productId)
+            ->first();
         if (! $product) {
             return;
         }
@@ -448,7 +481,24 @@ class PosPage extends Component
         if ($variants->count() <= 1) {
             $variant = $variants->first();
             if ($variant) {
-                $this->addVariantToCart((int) $variant->id);
+                if ($product->addons->isNotEmpty()) {
+                    $this->pendingVariantForAddon = [
+                        'product_id' => (int) $product->id,
+                        'variant_id' => (int) $variant->id,
+                        'product_name' => (string) $product->name,
+                        'variant_name' => ItemNameFormatter::displayVariantName((int) $product->id, (string) $variant->name),
+                        'price' => $this->finalVariantPrice($variant),
+                        'original_price' => (int) round((float) $variant->price),
+                        'percent' => $variant->percent === null ? null : (int) $variant->percent,
+                    ];
+                    $this->addonSearch = '';
+                    $this->addonPage = 1;
+                    $this->selectedAddonsWithQty = [];
+                    $this->searchAddons();
+                    $this->variantModalOpen = true;
+                } else {
+                    $this->addVariantToCart((int) $variant->id);
+                }
             }
 
             return;
@@ -471,6 +521,11 @@ class PosPage extends Component
         $this->variantModalOpen = true;
     }
 
+    public function openCombinedModal(int $productId): void
+    {
+        $this->openVariantModal($productId);
+    }
+
     public function addToCart(int $productId): void
     {
         if ($this->cartLocked) {
@@ -485,6 +540,7 @@ class PosPage extends Component
         }
 
         $variantsCount = ProductVariant::query()->where('product_id', $productId)->count();
+
         if ($variantsCount <= 0) {
             $this->dispatch('toast', type: 'error', message: 'Produk belum memiliki varian harga.');
 
@@ -492,6 +548,14 @@ class PosPage extends Component
         }
 
         if ($variantsCount > 1) {
+            $this->openVariantModal($productId);
+
+            return;
+        }
+
+        $product->loadMissing('addons');
+
+        if ($product->addons->isNotEmpty()) {
             $this->openVariantModal($productId);
 
             return;
@@ -530,6 +594,27 @@ class PosPage extends Component
             return;
         }
 
+        $product = $variant->product;
+        $product->loadMissing('addons');
+
+        if ($product->addons->isNotEmpty()) {
+            $this->pendingVariantForAddon = [
+                'product_id' => (int) $product->id,
+                'variant_id' => (int) $variant->id,
+                'product_name' => (string) $product->name,
+                'variant_name' => ItemNameFormatter::displayVariantName((int) $product->id, (string) $variant->name),
+                'price' => $this->finalVariantPrice($variant),
+                'original_price' => (int) round((float) $variant->price),
+                'percent' => $variant->percent === null ? null : (int) $variant->percent,
+            ];
+            $this->addonSearch = '';
+            $this->addonPage = 1;
+            $this->selectedAddonsWithQty = [];
+            $this->searchAddons();
+
+            return;
+        }
+
         $finalPrice = $this->finalVariantPrice($variant);
         $base = (int) round((float) $variant->price);
 
@@ -562,6 +647,185 @@ class PosPage extends Component
         ];
 
         $this->recalculateTotals();
+        $this->variantModalOpen = false;
+    }
+
+    public function updatedAddonSearch(): void
+    {
+        $this->addonPage = 1;
+        $this->searchAddons();
+    }
+
+    public function searchAddons(): void
+    {
+        if (! $this->pendingVariantForAddon) {
+            return;
+        }
+
+        $productId = $this->pendingVariantForAddon['product_id'];
+        $search = $this->addonSearch;
+
+        $query = Addon::query()
+            ->where('is_available', true)
+            ->whereHas('products', fn ($q) => $q->where('product_id', $productId));
+
+        if ($search !== '') {
+            $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        $perPage = 10;
+        $items = $query->orderBy('name')
+            ->skip(($this->addonPage - 1) * $perPage)
+            ->take($perPage + 1)
+            ->get();
+
+        $this->addonHasMore = $items->count() > $perPage;
+        $items = $items->take($perPage);
+
+        $mapped = $items->map(fn ($a) => [
+            'id' => (int) $a->id,
+            'name' => (string) $a->name,
+            'price' => (int) round((float) $a->price),
+        ])->values()->all();
+
+        if ($this->addonPage === 1) {
+            $this->addonSearchResults = $mapped;
+        } else {
+            $this->addonSearchResults = array_merge($this->addonSearchResults, $mapped);
+        }
+    }
+
+    public function loadMoreAddons(): void
+    {
+        $this->addonPage++;
+        $this->searchAddons();
+    }
+
+    public function addAddonToSelection(int $addonId, string $name, int $price): void
+    {
+        foreach ($this->selectedAddonsWithQty as $idx => $sa) {
+            if ((int) $sa['id'] === $addonId) {
+                $this->selectedAddonsWithQty[$idx]['quantity'] = (int) $this->selectedAddonsWithQty[$idx]['quantity'] + 1;
+
+                return;
+            }
+        }
+
+        $this->selectedAddonsWithQty[] = [
+            'id' => $addonId,
+            'name' => $name,
+            'price' => $price,
+            'quantity' => 1,
+        ];
+    }
+
+    public function removeAddonFromSelection(int $addonId): void
+    {
+        $this->selectedAddonsWithQty = array_values(array_filter($this->selectedAddonsWithQty, fn ($sa) => (int) $sa['id'] !== $addonId));
+    }
+
+    public function updateAddonQty(int $addonId, int $qty): void
+    {
+        if ($qty <= 0) {
+            $this->removeAddonFromSelection($addonId);
+
+            return;
+        }
+
+        foreach ($this->selectedAddonsWithQty as $idx => $sa) {
+            if ((int) $sa['id'] === $addonId) {
+                $this->selectedAddonsWithQty[$idx]['quantity'] = $qty;
+
+                return;
+            }
+        }
+    }
+
+    public function closeVariantModal(): void
+    {
+        $this->variantModalOpen = false;
+        $this->pendingVariantForAddon = null;
+        $this->addonSearch = '';
+        $this->addonSearchResults = [];
+        $this->selectedAddonsWithQty = [];
+    }
+
+    public function confirmAddonsToCart(): void
+    {
+        if ($this->cartLocked) {
+            $this->dispatch('toast', type: 'error', message: 'Pesanan yang dimuat tidak dapat diubah.');
+            $this->pendingVariantForAddon = null;
+            $this->variantModalOpen = false;
+
+            return;
+        }
+
+        $ctx = $this->pendingVariantForAddon;
+        if (! $ctx) {
+            $this->variantModalOpen = false;
+
+            return;
+        }
+
+        $variantId = (int) ($ctx['variant_id'] ?? 0);
+        $productId = (int) ($ctx['product_id'] ?? 0);
+
+        $selectedAddons = [];
+        foreach ($this->selectedAddonsWithQty as $sa) {
+            $selectedAddons[] = [
+                'id' => (int) $sa['id'],
+                'name' => (string) $sa['name'],
+                'price' => (int) $sa['price'],
+                'quantity' => (int) $sa['quantity'],
+            ];
+        }
+
+        if ($variantId > 0) {
+            $variant = ProductVariant::query()->with('product')->find($variantId);
+            if (! $variant || ! $variant->product) {
+                $this->pendingVariantForAddon = null;
+                $this->variantModalOpen = false;
+
+                return;
+            }
+
+            $finalPrice = $this->finalVariantPrice($variant);
+            $base = (int) round((float) $variant->price);
+
+            $existingIndex = null;
+            foreach ($this->cartItems as $i => $item) {
+                if ((int) ($item['variant_id'] ?? 0) === $variantId && empty($item['addons'] ?? [])) {
+                    $existingIndex = $i;
+                    break;
+                }
+            }
+
+            if ($existingIndex !== null) {
+                $this->cartItems[$existingIndex]['quantity'] = (int) ($this->cartItems[$existingIndex]['quantity'] ?? 0) + 1;
+                $this->cartItems[$existingIndex]['addons'] = $selectedAddons;
+                $this->recalculateTotals();
+                $this->pendingVariantForAddon = null;
+                $this->variantModalOpen = false;
+
+                return;
+            }
+
+            $this->cartItems[] = [
+                'product_id' => $productId,
+                'variant_id' => $variantId,
+                'name' => (string) $variant->product->name,
+                'variant_name' => ItemNameFormatter::displayVariantName($productId, (string) $variant->name),
+                'price' => $finalPrice,
+                'original_price' => $base,
+                'percent' => $variant->percent === null ? null : (int) $variant->percent,
+                'quantity' => 1,
+                'note' => null,
+                'addons' => $selectedAddons,
+            ];
+        }
+
+        $this->recalculateTotals();
+        $this->pendingVariantForAddon = null;
         $this->variantModalOpen = false;
     }
 
@@ -1046,6 +1310,7 @@ class PosPage extends Component
         $this->clearCart();
         $this->orderType = 'take_away';
         $this->selectedTableId = null;
+        $this->customerType = 'walk_in';
         $this->memberId = null;
         $this->customerName = (string) ($setting->pos_default_customer_name ?? 'Walk-in');
         $this->customerPhone = null;
@@ -1111,7 +1376,7 @@ class PosPage extends Component
         $this->authorize('transactions.details');
 
         $trx = Transaction::query()
-            ->with(['transactionItems.product', 'transactionItems.variant', 'diningTable'])
+            ->with(['transactionItems.product', 'transactionItems.variant', 'transactionItems.itemAddons.addon', 'diningTable'])
             ->whereKey($transactionId)
             ->where('payment_status', 'pending')
             ->whereIn('channel', ['pos', 'self_order'])
@@ -1152,13 +1417,19 @@ class PosPage extends Component
             $payload = [
                 'product_id' => (int) $item->product_id,
                 'variant_id' => $item->product_variant_id === null ? 0 : (int) $item->product_variant_id,
-                'name' => $name,
+                                'name' => $name,
                 'variant_name' => $variantName,
-                'price' => $price,
+                                'price' => $price,
                 'original_price' => $price,
                 'percent' => null,
                 'quantity' => (int) $item->quantity,
                 'note' => $item->note,
+                'addons' => $item->itemAddons->map(fn ($ia) => [
+                    'id' => (int) $ia->addon_id,
+                    'name' => $ia->addon ? (string) $ia->addon->name : 'Add-on',
+                    'price' => (int) round((float) $ia->price),
+                    'quantity' => (int) max(1, (int) $ia->quantity / max(1, (int) $item->quantity)),
+                ])->values()->all(),
             ];
 
             if ($item->product && (bool) $item->product->is_package && (string) ($item->product->package_type ?? 'simple') === 'complex') {
@@ -1484,6 +1755,19 @@ class PosPage extends Component
 
         $this->recalculateTotals();
 
+        if ($this->customerType === 'member' && $this->customerPhone) {
+            $phone = $this->normalizePhoneForMember($this->customerPhone);
+            $member = Member::firstOrCreate(
+                ['phone' => $phone],
+                ['name' => $this->customerName, 'phone' => $phone],
+            );
+            $this->memberId = (int) $member->id;
+            $this->customerName = (string) $member->name;
+            $this->customerPhone = (string) $member->phone;
+            $this->memberPoints = (int) $member->points;
+            $this->recalculateTotals();
+        }
+
         if (! $this->ensureManualDiscountValid()) {
             return;
         }
@@ -1690,6 +1974,23 @@ class PosPage extends Component
                     'manual_discount_amount' => (int) ($manualAllocations[$index] ?? 0),
                     'note' => $note === '' ? null : $note,
                 ]);
+
+                $addons = $item['addons'] ?? [];
+                foreach ($addons as $addon) {
+                    $addonId = (int) ($addon['id'] ?? 0);
+                    $addonPrice = (int) ($addon['price'] ?? 0);
+                    $addonQty = (int) ($addon['quantity'] ?? 1);
+                    $itemQty = (int) ($item['quantity'] ?? 1);
+                    if ($addonId > 0) {
+                        TransactionItemAddon::query()->create([
+                            'transaction_item_id' => (int) $parent->id,
+                            'addon_id' => $addonId,
+                            'name' => $addon['name'],
+                            'quantity' => $addonQty * $itemQty,
+                            'price' => $addonPrice,
+                        ]);
+                    }
+                }
 
                 $product = $productsById->get($productId);
 
@@ -1904,6 +2205,24 @@ class PosPage extends Component
         return $allocations;
     }
 
+    private function normalizePhoneForMember(?string $phone): ?string
+    {
+        if (empty($phone)) {
+            return null;
+        }
+
+        $p = preg_replace('/\D+/', '', $phone);
+        if (str_starts_with($p, '0')) {
+            return '62'.substr($p, 1);
+        }
+
+        if (! str_starts_with($p, '62')) {
+            return '62'.$p;
+        }
+
+        return $p;
+    }
+
     private function createPackageChildItems(Transaction $trx, TransactionItem $parent, Product $product, array $cartItem, int $parentQty): void
     {
         $packageType = (string) ($product->package_type ?? 'simple');
@@ -2056,7 +2375,7 @@ class PosPage extends Component
             $variantName = ItemNameFormatter::displayVariantName((int) $item->product_id, $item->variant?->name);
             $price = (int) round((float) $item->price);
 
-            return [
+            $payload = [
                 'product_id' => (int) $item->product_id,
                 'variant_id' => $item->product_variant_id === null ? 0 : (int) $item->product_variant_id,
                 'name' => $name,
@@ -2235,7 +2554,7 @@ class PosPage extends Component
             $variantId = (int) ($row['variant_id'] ?? 0);
             $qty = (int) ($row['quantity'] ?? 0);
 
-            if ($variantId <= 0 || $qty <= 0) {
+            if ($qty <= 0 || $variantId <= 0) {
                 continue;
             }
 
@@ -2268,7 +2587,7 @@ class PosPage extends Component
     private function reloadCartItemsFromTransaction(int $transactionId): void
     {
         $trx = Transaction::query()
-            ->with(['transactionItems.product', 'transactionItems.variant'])
+            ->with(['transactionItems.product', 'transactionItems.variant', 'transactionItems.itemAddons.addon'])
             ->whereKey($transactionId)
             ->where('payment_status', 'pending')
             ->first();
@@ -2289,13 +2608,19 @@ class PosPage extends Component
             $payload = [
                 'product_id' => (int) $item->product_id,
                 'variant_id' => $item->product_variant_id === null ? 0 : (int) $item->product_variant_id,
-                'name' => $name,
+                                'name' => $name,
                 'variant_name' => $variantName,
-                'price' => $price,
+                                'price' => $price,
                 'original_price' => $price,
                 'percent' => null,
                 'quantity' => (int) $item->quantity,
                 'note' => $item->note,
+                'addons' => $item->itemAddons->map(fn ($ia) => [
+                    'id' => (int) $ia->addon_id,
+                    'name' => $ia->addon ? (string) $ia->addon->name : 'Add-on',
+                    'price' => (int) round((float) $ia->price),
+                    'quantity' => (int) max(1, (int) $ia->quantity / max(1, (int) $item->quantity)),
+                ])->values()->all(),
             ];
 
             if ($item->product && (bool) $item->product->is_package && (string) ($item->product->package_type ?? 'simple') === 'complex') {
@@ -2325,6 +2650,12 @@ class PosPage extends Component
             $price = (int) ($item['price'] ?? 0);
             if ($qty > 0 && $price >= 0) {
                 $subtotal += $qty * $price;
+            }
+            $addons = $item['addons'] ?? [];
+            foreach ($addons as $addon) {
+                $addonPrice = (int) ($addon['price'] ?? 0);
+                $addonQty = (int) ($addon['quantity'] ?? 1);
+                $subtotal += $addonPrice * $addonQty * $qty;
             }
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -19,10 +20,26 @@ class SignInPage extends Component
 
     public bool $remember = false;
 
+    public bool $isTenantContext = false;
+
+    public ?string $tenantName = null;
+
     public function mount(): mixed
     {
-        // Check if there is any user, if not redirect to setup
-        if (! User::exists()) {
+        $this->isTenantContext = Tenant::checkCurrent();
+
+        if ($this->isTenantContext) {
+            $this->tenantName = Tenant::current()->name;
+            $tenantHasUsers = User::where('tenant_id', Tenant::current()->id)->exists();
+
+            if (! $tenantHasUsers) {
+                return redirect()->route('setup');
+            }
+
+            return null;
+        }
+
+        if (User::whereNull('tenant_id')->doesntExist()) {
             return redirect()->route('setup');
         }
 
@@ -37,7 +54,16 @@ class SignInPage extends Component
             'remember' => ['boolean'],
         ]);
 
-        $user = User::query()->where('email', $validated['email'])->first();
+        $query = User::query()->where('email', $validated['email']);
+
+        if ($this->isTenantContext) {
+            $query->where('tenant_id', Tenant::current()->id);
+        } else {
+            $query->whereNull('tenant_id');
+        }
+
+        $user = $query->first();
+
         if ($user && ! $user->is_active) {
             throw ValidationException::withMessages([
                 'email' => 'Akun dinonaktifkan.',

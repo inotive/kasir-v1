@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\DiningTable;
+use App\Models\Tenant;
 use Illuminate\Support\Facades\Storage;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -23,7 +24,19 @@ class DiningTableObserver
     {
         $id = (int) $table->id;
         $encoded = \generate_qr_code($id);
-        $url = rtrim(config('app.url'), '/').'/t/'.$encoded;
+
+        if (Tenant::checkCurrent()) {
+            $slug = Tenant::current()->slug;
+            $parsed = parse_url(config('app.url'));
+            $host = $parsed['host'] ?? 'localhost';
+            $scheme = $parsed['scheme'] ?? 'http';
+            $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
+            $baseUrl = $scheme.'://'.$slug.'.'.$host.$port;
+        } else {
+            $baseUrl = rtrim(config('app.url'), '/');
+        }
+
+        $url = $baseUrl.'/t/'.$encoded;
 
         $svg = QrCode::margin(1)->size(200)->generate($url);
         $path = 'qr_codes/'.$id.'.svg';

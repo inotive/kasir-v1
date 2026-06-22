@@ -2,6 +2,7 @@
 
 namespace App\Support\Finance;
 
+use App\Models\Tenant;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -30,7 +31,8 @@ class NetSales
         $sub = DB::table('transactions as t')
             ->join('transaction_items as ti', 't.id', '=', 'ti.transaction_id')
             ->whereIn('t.payment_status', self::postedPaymentStatuses())
-            ->whereBetween('t.created_at', [$from, $to])
+            ->whereBetween('t.created_at', [$from, $to]);
+        $sub = self::applyTenantFilter($sub)
             ->selectRaw('t.id as tx_id')
             ->selectRaw('COALESCE(t.refunded_amount, 0) as refunded_amount')
             ->selectRaw('COALESCE(SUM('.self::itemNetExpr('ti').'), 0) as item_net')
@@ -49,7 +51,8 @@ class NetSales
         $sub = DB::table('transactions as t')
             ->join('transaction_items as ti', 't.id', '=', 'ti.transaction_id')
             ->whereIn('t.payment_status', self::postedPaymentStatuses())
-            ->whereBetween('t.created_at', [$from, $to])
+            ->whereBetween('t.created_at', [$from, $to]);
+        $sub = self::applyTenantFilter($sub)
             ->selectRaw('DATE(t.created_at) as bucket')
             ->selectRaw('t.id as tx_id')
             ->selectRaw('COALESCE(t.refunded_amount, 0) as refunded_amount')
@@ -82,7 +85,8 @@ class NetSales
         $sub = DB::table('transactions as t')
             ->join('transaction_items as ti', 't.id', '=', 'ti.transaction_id')
             ->whereIn('t.payment_status', self::postedPaymentStatuses())
-            ->whereBetween('t.created_at', [$from, $to])
+            ->whereBetween('t.created_at', [$from, $to]);
+        $sub = self::applyTenantFilter($sub)
             ->selectRaw($bucketExpr.' as bucket')
             ->selectRaw('t.id as tx_id')
             ->selectRaw('COALESCE(t.refunded_amount, 0) as refunded_amount')
@@ -103,5 +107,16 @@ class NetSales
         }
 
         return $out;
+    }
+
+    private static function applyTenantFilter($query)
+    {
+        if (Tenant::checkCurrent()) {
+            $query->where('t.tenant_id', Tenant::current()->id);
+        } else {
+            $query->whereNull('t.tenant_id');
+        }
+
+        return $query;
     }
 }

@@ -29,6 +29,7 @@ class Setting extends Model
         'corrections_refund_quick_max_count_per_day',
         'corrections_void_quick_max_count_per_day',
         'corrections_void_quick_window_minutes',
+        'qris_image',
     ];
 
     protected function casts(): array
@@ -88,6 +89,7 @@ class Setting extends Model
                 'corrections_refund_quick_max_count_per_day' => 2,
                 'corrections_void_quick_max_count_per_day' => 3,
                 'corrections_void_quick_window_minutes' => 5,
+                'qris_image' => null,
             ]);
         }
 

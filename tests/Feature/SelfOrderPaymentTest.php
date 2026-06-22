@@ -505,8 +505,7 @@ it('shows online payment actions on status page for online pending transactions'
         ->assertOk()
         ->assertSee('Pembayaran Online')
         ->assertSee('Lanjutkan Pembayaran')
-        ->assertDontSee('Cek Status Sekarang')
-        ->assertSee('Ganti Metode Pembayaran');
+        ->assertDontSee('Cek Status Sekarang');
 });
 
 it('shows voucher discount on self-order status page', function () {

@@ -33,6 +33,10 @@ class SettingsPage extends Component
 
     public ?string $store_logo_path = null;
 
+    public $qris_image_upload = null;
+
+    public ?string $qris_image_path = null;
+
     public int $rounding_base = 100;
 
     public bool $discount_applies_before_tax = true;
@@ -91,6 +95,7 @@ class SettingsPage extends Component
         $this->payment_gateway_enabled = (bool) $setting->payment_gateway_enabled;
         $this->tax_rate = (float) $setting->tax_rate;
         $this->store_logo_path = $setting->store_logo;
+        $this->qris_image_path = $setting->qris_image;
         $this->rounding_base = max(0, (int) $setting->rounding_base);
         $this->discount_applies_before_tax = (bool) ($setting->discount_applies_before_tax ?? true);
         $this->pos_default_customer_name = (string) ($setting->pos_default_customer_name ?? 'Walk-in');
@@ -298,6 +303,7 @@ class SettingsPage extends Component
             'payment_gateway_enabled' => ['boolean'],
             'tax_rate' => ['numeric', 'min:0', 'max:100'],
             'store_logo_upload' => ['nullable', 'image', 'max:2048'],
+            'qris_image_upload' => ['nullable', 'image', 'max:2048'],
         ]);
 
         $setting = Setting::current();
@@ -314,6 +320,18 @@ class SettingsPage extends Component
             }
         }
 
+        if ($this->qris_image_upload) {
+            $path = $this->qris_image_upload->store('qris', 'public');
+            $old = $setting->qris_image;
+
+            $setting->qris_image = $path;
+            $this->qris_image_path = $path;
+
+            if ($old && $old !== $path) {
+                Storage::disk('public')->delete($old);
+            }
+        }
+
         $setting->store_name = $validated['store_name'] !== null && trim($validated['store_name']) !== '' ? trim($validated['store_name']) : null;
         $setting->phone = $validated['phone'] !== null && trim($validated['phone']) !== '' ? trim($validated['phone']) : null;
         $setting->address = $validated['address'] !== null && trim($validated['address']) !== '' ? trim($validated['address']) : null;
@@ -322,6 +340,7 @@ class SettingsPage extends Component
         $setting->save();
 
         $this->store_logo_upload = null;
+        $this->qris_image_upload = null;
 
         $this->dispatch('toast', type: 'success', message: 'Pengaturan toko berhasil disimpan.');
     }
@@ -555,6 +574,31 @@ class SettingsPage extends Component
         }
 
         return Storage::disk('public')->url($this->store_logo_path);
+    }
+
+    public function qrisImageUrl(): ?string
+    {
+        if (! $this->qris_image_path) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->qris_image_path);
+    }
+
+    public function deleteQrisImage(): void
+    {
+        $this->authorizeSectionEdit('store');
+
+        $setting = Setting::current();
+        if ($setting->qris_image) {
+            Storage::disk('public')->delete($setting->qris_image);
+        }
+        $setting->qris_image = null;
+        $setting->save();
+        $this->qris_image_path = null;
+        $this->qris_image_upload = null;
+
+        $this->dispatch('toast', type: 'success', message: 'Gambar QRIS berhasil dihapus.');
     }
 
     public function render(): View

@@ -134,6 +134,8 @@ class PosPage extends Component
 
     public int $total = 0;
 
+    public int $paymentFeeAmount = 0;
+
     public int $roundingBase = 100;
 
     public bool $discountAppliesBeforeTax = true;
@@ -1452,7 +1454,15 @@ class PosPage extends Component
 
         $this->taxRate = $trx->tax_percentage === null ? $this->taxRate : (float) $trx->tax_percentage;
         $this->voucherCodeInput = $this->lockedVoucherCode;
+        $this->paymentMethod = match ((string) ($trx->payment_method ?? '')) {
+            'qris', 'qris_midtrans' => 'qris',
+            default => 'cash',
+        };
+        $this->paymentFeeAmount = (int) ($trx->payment_fee_amount ?? 0);
         $this->recalculateTotals();
+        if ($this->paymentFeeAmount > 0) {
+            $this->total += $this->paymentFeeAmount;
+        }
         $this->pendingOrdersModalOpen = false;
     }
 
@@ -1768,6 +1778,10 @@ class PosPage extends Component
             $this->recalculateTotals();
         }
 
+        if ($this->paymentFeeAmount > 0) {
+            $this->total += $this->paymentFeeAmount;
+        }
+
         if (! $this->ensureManualDiscountValid()) {
             return;
         }
@@ -1925,6 +1939,7 @@ class PosPage extends Component
                     'tax_percentage' => $this->taxRate,
                     'tax_amount' => $this->taxAmount,
                     'rounding_amount' => $this->roundingAmount,
+                    'payment_fee_amount' => $this->paymentFeeAmount,
                     'cash_received' => $cashReceived,
                     'cash_change' => $isCash ? max(0, $cashReceived - $this->total) : null,
                     'total' => $this->total,
@@ -2443,7 +2458,7 @@ class PosPage extends Component
 
         return Transaction::query()
             ->where('channel', 'self_order')
-            ->where('payment_method', 'cash')
+            ->whereIn('payment_method', ['cash', 'qris'])
             ->where('payment_status', 'pending')
             ->with(['diningTable'])
             ->withCount('transactionItems')

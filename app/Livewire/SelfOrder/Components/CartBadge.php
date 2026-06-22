@@ -32,8 +32,17 @@ class CartBadge extends Component
         $subtotal = array_sum(array_map(function ($item) {
             $hasDiscount = isset($item['price_afterdiscount']) && (int) $item['price_afterdiscount'] > 0 && (int) $item['price_afterdiscount'] < (int) $item['price'];
             $price = $hasDiscount ? (int) $item['price_afterdiscount'] : (int) $item['price'];
+            $qty = (int) ($item['quantity'] ?? 1);
 
-            return $price * (int) ($item['quantity'] ?? 1);
+            $itemTotal = $price * $qty;
+
+            foreach ($item['addons'] ?? [] as $addon) {
+                $addonPrice = (int) ($addon['price'] ?? 0);
+                $addonQty = (int) ($addon['quantity'] ?? 1);
+                $itemTotal += $addonPrice * $addonQty * $qty;
+            }
+
+            return $itemTotal;
         }, $this->cartItems ?? []));
 
         $totalPrice = $subtotal;

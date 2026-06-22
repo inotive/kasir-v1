@@ -5,6 +5,8 @@ namespace App\Livewire\SelfOrder\Pages;
 use App\Models\Transaction;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -25,6 +27,17 @@ class PaymentStatusPage extends Component
         return [
             "echo:self-order.{$token},.payment.updated" => 'handlePaymentUpdated',
         ];
+    }
+
+    public function qrisImageUrl(): ?string
+    {
+        $path = \App\Models\Setting::current()->qris_image;
+
+        if (! $path) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     public function mount(?string $code = null): void

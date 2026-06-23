@@ -78,6 +78,10 @@ class RoleIndex extends Component
     {
         $this->authorize('roles.manage');
 
+        if (auth()->user()->tenant_id !== null) {
+            abort(403);
+        }
+
         $role = Role::find($id);
         if ($role) {
             if ($role->name === 'owner') {

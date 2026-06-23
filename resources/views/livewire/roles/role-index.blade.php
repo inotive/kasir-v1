@@ -28,9 +28,11 @@
         </div>
         <div class="flex items-center gap-2">
             @can('roles.manage')
-                <a href="{{ route('roles.create') }}" wire:navigate class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white transition">
-                    Buat Peran Baru
-                </a>
+                @if (auth()->user()->tenant_id === null)
+                    <a href="{{ route('roles.create') }}" wire:navigate class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white transition">
+                        Buat Peran Baru
+                    </a>
+                @endif
             @endcan
         </div>
     </div>
@@ -370,15 +372,17 @@
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex items-center justify-end gap-2">
                                         @can('roles.manage')
-                                            <a href="{{ route('roles.edit', $role->id) }}" wire:navigate class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-white/[0.03]">
-                                                Ubah
-                                            </a>
-                                            @if($role->name !== 'owner')
-                                                <button wire:click="delete({{ $role->id }})"
-                                                        wire:confirm="Yakin ingin menghapus peran ini? Pengguna yang memakai peran ini akan kehilangan akses."
-                                                        class="rounded-lg bg-error-50 px-3 py-2 text-xs font-medium text-error-600 hover:bg-error-100 dark:bg-error-500/10 dark:text-error-500 dark:hover:bg-error-500/20">
-                                                    Hapus
-                                                </button>
+                                            @if (auth()->user()->tenant_id === null)
+                                                <a href="{{ route('roles.edit', $role->id) }}" wire:navigate class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                                                    Ubah
+                                                </a>
+                                                @if($role->name !== 'owner')
+                                                    <button wire:click="delete({{ $role->id }})"
+                                                            wire:confirm="Yakin ingin menghapus peran ini? Pengguna yang memakai peran ini akan kehilangan akses."
+                                                            class="rounded-lg bg-error-50 px-3 py-2 text-xs font-medium text-error-600 hover:bg-error-100 dark:bg-error-500/10 dark:text-error-500 dark:hover:bg-error-500/20">
+                                                        Hapus
+                                                    </button>
+                                                @endif
                                             @endif
                                         @endcan
                                     </div>

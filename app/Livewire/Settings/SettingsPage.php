@@ -37,6 +37,12 @@ class SettingsPage extends Component
 
     public ?string $qris_image_path = null;
 
+    public ?string $midtrans_merchant_id = null;
+
+    public ?string $midtrans_server_key = null;
+
+    public ?string $midtrans_client_key = null;
+
     public int $rounding_base = 100;
 
     public bool $discount_applies_before_tax = true;
@@ -96,6 +102,9 @@ class SettingsPage extends Component
         $this->tax_rate = (float) $setting->tax_rate;
         $this->store_logo_path = $setting->store_logo;
         $this->qris_image_path = $setting->qris_image;
+        $this->midtrans_merchant_id = $setting->midtrans_merchant_id;
+        $this->midtrans_server_key = $setting->midtrans_server_key;
+        $this->midtrans_client_key = $setting->midtrans_client_key;
         $this->rounding_base = max(0, (int) $setting->rounding_base);
         $this->discount_applies_before_tax = (bool) ($setting->discount_applies_before_tax ?? true);
         $this->pos_default_customer_name = (string) ($setting->pos_default_customer_name ?? 'Walk-in');
@@ -304,6 +313,9 @@ class SettingsPage extends Component
             'tax_rate' => ['numeric', 'min:0', 'max:100'],
             'store_logo_upload' => ['nullable', 'image', 'max:2048'],
             'qris_image_upload' => ['nullable', 'image', 'max:2048'],
+            'midtrans_merchant_id' => ['nullable', 'string', 'max:100'],
+            'midtrans_server_key' => ['nullable', 'string', 'max:255'],
+            'midtrans_client_key' => ['nullable', 'string', 'max:255'],
         ]);
 
         $setting = Setting::current();
@@ -337,6 +349,9 @@ class SettingsPage extends Component
         $setting->address = $validated['address'] !== null && trim($validated['address']) !== '' ? trim($validated['address']) : null;
         $setting->payment_gateway_enabled = (bool) $validated['payment_gateway_enabled'];
         $setting->tax_rate = (float) $validated['tax_rate'];
+        $setting->midtrans_merchant_id = $validated['midtrans_merchant_id'] !== null && trim($validated['midtrans_merchant_id']) !== '' ? trim($validated['midtrans_merchant_id']) : null;
+        $setting->midtrans_server_key = $validated['midtrans_server_key'] !== null && trim($validated['midtrans_server_key']) !== '' ? trim($validated['midtrans_server_key']) : null;
+        $setting->midtrans_client_key = $validated['midtrans_client_key'] !== null && trim($validated['midtrans_client_key']) !== '' ? trim($validated['midtrans_client_key']) : null;
         $setting->save();
 
         $this->store_logo_upload = null;
@@ -540,9 +555,10 @@ class SettingsPage extends Component
 
     public function midtransStatus(): array
     {
-        $merchantId = (string) config('midtrans.merchant_id', '');
-        $clientKey = (string) config('midtrans.client_key', '');
-        $serverKey = (string) config('midtrans.server_key', '');
+        $setting = Setting::current();
+        $merchantId = (string) ($setting->midtrans_merchant_id ?? '');
+        $clientKey = (string) ($setting->midtrans_client_key ?? '');
+        $serverKey = (string) ($setting->midtrans_server_key ?? '');
         $isProduction = (bool) config('midtrans.is_production', false);
 
         $mask = function (string $value): string {

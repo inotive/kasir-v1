@@ -23,6 +23,7 @@
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Bisnis</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Pengguna
                         </th>
+                        <th class="px-5 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Dibuat</th>
                         <th class="px-5 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Aksi</th>
                     </tr>
@@ -36,15 +37,26 @@
                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
                                 {{ $t->business_name ?? '-' }}</td>
                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $t->users_count }}</td>
+                            <td class="px-5 py-4 text-center">
+                                <button
+                                    type="button"
+                                    x-on:click.prevent="$dispatch('confirm', { message: 'Yakin ingin mengubah status tenant ini?', method: 'toggleActive', args: [{{ $t->id }}] })"
+                                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $t->is_active ? 'bg-brand-500' : 'bg-gray-300 dark:bg-gray-600' }}"
+                                >
+                                    <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $t->is_active ? 'translate-x-6' : 'translate-x-1' }}"></span>
+                                </button>
+                            </td>
                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
                                 {{ $t->created_at?->format('d M Y') ?? '-' }}</td>
                             <td class="px-5 py-4 text-right">
-                                <a href="{{ route('tenants.edit', $t) }}" wire:navigate
-                                    class="text-brand-600 hover:text-brand-700 text-sm font-medium dark:text-brand-400 dark:hover:text-brand-300">Ubah</a>
+                                <div class="inline-flex items-center gap-2">
+                                    <a href="{{ route('tenants.edit', $t) }}" wire:navigate
+                                        class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]">Ubah</a>
+                                </div>
                             </td>
                         </tr>
                     @empty
-                        <x-common.empty-table-row colspan="6" message="Belum ada tenant." />
+                        <x-common.empty-table-row colspan="7" message="Belum ada tenant." />
                     @endforelse
                 </tbody>
             </table>
@@ -53,4 +65,6 @@
             {{ $tenants->links('livewire.pagination.admin') }}
         </div>
     </div>
+
+    <x-common.confirm-modal confirm-label="Ya, ubah" />
 </div>

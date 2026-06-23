@@ -70,6 +70,12 @@ class SignInPage extends Component
             ]);
         }
 
+        if ($user && $user->tenant_id !== null && $user->tenant && ! $user->tenant->is_active) {
+            throw ValidationException::withMessages([
+                'email' => 'Akun bisnis ini sedang dinonaktifkan.',
+            ]);
+        }
+
         $ok = false;
         try {
             $ok = Auth::attempt(

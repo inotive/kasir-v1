@@ -13,6 +13,7 @@ class Tenant extends SpatieTenant
         'business_name',
         'domain',
         'database',
+        'is_active',
     ];
 
     public function users(): HasMany

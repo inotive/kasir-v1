@@ -22,6 +22,20 @@ class TenantListPage extends Component
         }
     }
 
+    public function toggleActive(int $tenantId): void
+    {
+        $this->authorize('dashboard.access');
+
+        if (auth()->user()->tenant_id !== null) {
+            abort(403);
+        }
+
+        $tenant = Tenant::findOrFail($tenantId);
+        $tenant->update(['is_active' => ! $tenant->is_active]);
+
+        session()->flash('toast', 'Status tenant berhasil diperbarui.');
+    }
+
     public function render(): View
     {
         $tenants = Tenant::query()

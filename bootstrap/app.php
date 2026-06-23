@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'active' => \App\Http\Middleware\EnsureActiveUser::class,
+            'active.tenant' => \App\Http\Middleware\EnsureActiveTenant::class,
             'admin.domain' => \App\Http\Middleware\EnsureAdminDomain::class,
             'dashboard.redirect' => \App\Http\Middleware\RedirectIfCannotAccessDashboard::class,
             'optional.tenant' => \App\Http\Middleware\EnsureOptionalTenant::class,
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware
             ->group('tenant', [
                 'optional.tenant',
+                'active.tenant',
             ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

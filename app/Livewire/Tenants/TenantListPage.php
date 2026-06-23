@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Tenants;
 
+use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
@@ -39,7 +40,7 @@ class TenantListPage extends Component
     public function render(): View
     {
         $tenants = Tenant::query()
-            ->withCount('users')
+            ->withCount(['users' => fn ($q) => $q->withoutGlobalScope(TenantScope::class)])
             ->orderBy('name')
             ->paginate(15);
 

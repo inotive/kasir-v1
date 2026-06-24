@@ -139,7 +139,33 @@
                                             </label>
                                         </div>
 
-                                        @if (! $payment_gateway_enabled)
+                                        @if ($payment_gateway_enabled)
+                                            <div class="mt-4 space-y-4">
+                                                <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Konfigurasi Midtrans</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">Isi kredensial Midtrans untuk toko ini.</p>
+                                                <div>
+                                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Merchant ID</label>
+                                                    <input wire:model.live="midtrans_merchant_id" type="text" autocomplete="off" aria-invalid="{{ $errors->has('midtrans_merchant_id') ? 'true' : 'false' }}" {{ $canEditStore ? '' : 'disabled' }} class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+                                                    <x-common.input-error for="midtrans_merchant_id" />
+                                                </div>
+                                                <div>
+                                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Server Key</label>
+                                                    <input wire:model.live="midtrans_server_key" type="password" autocomplete="off" aria-invalid="{{ $errors->has('midtrans_server_key') ? 'true' : 'false' }}" {{ $canEditStore ? '' : 'disabled' }} class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+                                                    <x-common.input-error for="midtrans_server_key" />
+                                                </div>
+                                                <div>
+                                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Client Key</label>
+                                                    <input wire:model.live="midtrans_client_key" type="password" autocomplete="off" aria-invalid="{{ $errors->has('midtrans_client_key') ? 'true' : 'false' }}" {{ $canEditStore ? '' : 'disabled' }} class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+                                                    <x-common.input-error for="midtrans_client_key" />
+                                                </div>
+                                                @php $status = $this->midtransStatus(); @endphp
+                                                <div class="rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                                                    <p>Status: <span class="font-semibold {{ $status['is_ready'] ? 'text-success-600' : 'text-error-600' }}">{{ $status['is_ready'] ? 'Terkonfigurasi' : 'Belum dikonfigurasi' }}</span></p>
+                                                    <p>Lingkungan: <span class="font-semibold">{{ $status['is_production'] ? 'Production' : 'Sandbox' }}</span></p>
+                                                    <p>Merchant ID: <span class="font-mono">{{ $status['merchant_id'] }}</span></p>
+                                                </div>
+                                            </div>
+                                        @else
                                             <div class="mt-4 space-y-3">
                                                 <p class="text-sm font-semibold text-gray-800 dark:text-white/90">QRIS Statis</p>
                                                 <p class="text-xs text-gray-500 dark:text-gray-400">Upload gambar QRIS yang akan ditampilkan di halaman pembayaran mandiri.</p>

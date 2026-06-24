@@ -22,7 +22,7 @@ class InitialSetupPage extends Component
 
     public function mount(): mixed
     {
-        if (User::exists()) {
+        if (User::whereNull('tenant_id')->exists()) {
             return redirect()->route('signin');
         }
 
@@ -31,7 +31,7 @@ class InitialSetupPage extends Component
 
     public function setup(): mixed
     {
-        if (User::exists()) {
+        if (User::whereNull('tenant_id')->exists()) {
             return redirect()->route('signin');
         }
 
@@ -50,6 +50,8 @@ class InitialSetupPage extends Component
             'is_active' => true,
             'last_login_at' => now(),
         ]);
+
+        $user->assignRole('owner');
 
         Auth::login($user);
         request()->session()->regenerate();

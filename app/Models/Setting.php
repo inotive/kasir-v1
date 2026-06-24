@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Setting extends Model
 {
+    use BelongsToTenant;
     protected $fillable = [
         'store_name',
         'phone',
@@ -30,6 +32,9 @@ class Setting extends Model
         'corrections_void_quick_max_count_per_day',
         'corrections_void_quick_window_minutes',
         'qris_image',
+        'midtrans_merchant_id',
+        'midtrans_server_key',
+        'midtrans_client_key',
     ];
 
     protected function casts(): array

@@ -20,6 +20,10 @@ class RoleForm extends Component
     {
         $this->authorize('roles.manage');
 
+        if (auth()->user()->tenant_id !== null) {
+            abort(403);
+        }
+
         if ($role && $role->exists) {
             $this->role = $role;
             $this->name = $role->name;
@@ -31,6 +35,10 @@ class RoleForm extends Component
     public function save()
     {
         $this->authorize('roles.manage');
+
+        if (auth()->user()->tenant_id !== null) {
+            abort(403);
+        }
 
         $this->validate([
             'name' => 'required|unique:roles,name,'.($this->role?->id ?? 'NULL'),

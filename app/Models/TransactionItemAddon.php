@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TransactionItemAddon extends Model
 {
+    use BelongsToTenant;
     protected $fillable = [
         'transaction_item_id',
         'addon_id',

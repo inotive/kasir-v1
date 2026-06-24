@@ -10,6 +10,7 @@ use App\Models\DiningTable;
 use App\Models\Member;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\TransactionItemAddon;
@@ -30,14 +31,6 @@ use Midtrans\Snap as MidtransSnap;
 
 class TransactionController extends Controller
 {
-    public function __construct()
-    {
-        MidtransConfig::$serverKey = (string) config('midtrans.server_key');
-        MidtransConfig::$isProduction = (bool) config('midtrans.is_production');
-        MidtransConfig::$isSanitized = (bool) config('midtrans.is_sanitized');
-        MidtransConfig::$is3ds = (bool) config('midtrans.is_3ds');
-    }
-
     public function handlePayment(HandleSelfOrderPaymentRequest $request)
     {
         $validated = $request->validated();
@@ -842,6 +835,11 @@ class TransactionController extends Controller
                 $customerDetails['email'] = (string) $email;
             }
 
+            MidtransConfig::$serverKey = (string) ($setting->midtrans_server_key ?? config('midtrans.server_key'));
+            MidtransConfig::$isProduction = (bool) config('midtrans.is_production');
+            MidtransConfig::$isSanitized = (bool) config('midtrans.is_sanitized', true);
+            MidtransConfig::$is3ds = (bool) config('midtrans.is_3ds', true);
+
             $params = [
                 'transaction_details' => [
                     'order_id' => $uuid,
@@ -1013,36 +1011,47 @@ class TransactionController extends Controller
         $grossAmount = (string) $request->input('gross_amount');
         $signatureKey = (string) $request->input('signature_key');
 
-        $serverKey = (string) config('midtrans.server_key');
-        $expectedSignature = hash('sha512', $orderId.$statusCode.$grossAmount.$serverKey);
-
         if ($orderId === '' || $statusCode === '' || $grossAmount === '' || $signatureKey === '') {
-            return response()->json([
-                'message' => 'Invalid webhook request.',
-            ], 400);
-        }
-
-        if (! hash_equals($expectedSignature, $signatureKey)) {
-            return response()->json([
-                'message' => 'Unauthorized webhook request.',
-            ], 401);
+            return response()->json(['message' => 'Invalid webhook request.'], 400);
         }
 
         try {
             $midStatus = (string) $request->input('transaction_status');
 
-            $transaction = Transaction::where('external_id', $orderId)->first();
+            $transaction = Transaction::withoutGlobalScopes()
+                ->where('external_id', $orderId)
+                ->first();
+
+            if ($transaction && $tenantId = $transaction->tenant_id) {
+                $tenant = Tenant::find($tenantId);
+                if ($tenant) {
+                    $tenant->makeCurrent();
+                }
+            }
+
+            $serverKey = $transaction
+                ? (string) ((Setting::current()->midtrans_server_key) ?? config('midtrans.server_key'))
+                : (string) config('midtrans.server_key');
+
+            $expectedSignature = hash('sha512', $orderId.$statusCode.$grossAmount.$serverKey);
+
+            if (! hash_equals($expectedSignature, $signatureKey)) {
+                return response()->json(['message' => 'Unauthorized webhook request.'], 401);
+            }
+
             if (! $transaction) {
                 Log::warning('Webhook received for unknown transaction', [
                     'order_id' => $orderId,
                     'transaction_status' => $midStatus,
                 ]);
 
-                return response()->json([
-                    'code' => 200,
-                    'message' => 'Webhook ignored',
-                ]);
+                return response()->json(['code' => 200, 'message' => 'Webhook ignored']);
             }
+
+            MidtransConfig::$serverKey = $serverKey;
+            MidtransConfig::$isProduction = (bool) config('midtrans.is_production');
+            MidtransConfig::$isSanitized = (bool) config('midtrans.is_sanitized', true);
+            MidtransConfig::$is3ds = (bool) config('midtrans.is_3ds', true);
 
             $previous = (string) $transaction->payment_status;
             $mapped = $this->mapMidtransStatusToPaymentStatus($midStatus);
@@ -1091,11 +1100,8 @@ class TransactionController extends Controller
                 'exception' => $e,
             ]);
 
-            return response()->json([
-                'message' => 'Failed to handle webhook.',
-            ], 500);
+            return response()->json(['message' => 'Failed to handle webhook.'], 500);
         }
-
     }
 
     public function clearSession()

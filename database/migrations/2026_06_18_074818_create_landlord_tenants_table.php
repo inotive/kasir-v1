@@ -6,17 +6,15 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up()
     {
         Schema::create('tenants', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('name');
-            $table->string('domain')->unique();
-            $table->string('database')->unique();
+            $table->string('slug')->unique();
+            $table->string('business_name')->nullable();
+            $table->string('domain')->nullable()->unique();
+            $table->string('database')->nullable();
             $table->timestamps();
         });
     }

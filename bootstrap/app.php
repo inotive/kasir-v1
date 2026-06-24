@@ -15,8 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'active' => \App\Http\Middleware\EnsureActiveUser::class,
+            'active.tenant' => \App\Http\Middleware\EnsureActiveTenant::class,
             'admin.domain' => \App\Http\Middleware\EnsureAdminDomain::class,
             'dashboard.redirect' => \App\Http\Middleware\RedirectIfCannotAccessDashboard::class,
+            'optional.tenant' => \App\Http\Middleware\EnsureOptionalTenant::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
@@ -26,8 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware
             ->group('tenant', [
-                \Spatie\Multitenancy\Http\Middleware\NeedsTenant::class,
-                \Spatie\Multitenancy\Http\Middleware\EnsureValidTenantSession::class,
+                'optional.tenant',
+                'active.tenant',
             ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

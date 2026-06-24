@@ -30,10 +30,7 @@
         $brandTextUrl = asset('images/landing/Hippi_kasir.png');
         $brandWhatsappUrl = $waPhone ? 'https://wa.me/'.$waPhone.'?text='.rawurlencode('Halo '.$brandName.', saya tertarik dengan HIPPI Kasir.') : null;
 
-        $appUrlScheme = parse_url(config('app.url'), PHP_URL_SCHEME);
-        $scheme = is_string($appUrlScheme) && $appUrlScheme !== '' ? $appUrlScheme : 'https';
-        $adminDomain = (string) config('domains.admin', '');
-        $adminSignInUrl = $adminDomain !== '' ? $scheme.'://'.$adminDomain.'/admin/signin' : url('/admin/signin');
+        $adminSignInUrl = url('/admin/signin');
     @endphp
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])

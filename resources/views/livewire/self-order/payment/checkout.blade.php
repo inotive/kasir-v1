@@ -1,5 +1,5 @@
 <div class="min-h-screen bg-gray-50 font-poppins pb-32"
-    x-data="{ method: '{{ $hasUnpaidTransaction ? 'online' : (($payment_gateway_enabled ?? true) ? 'online' : 'cashier') }}', locked: {{ $hasUnpaidTransaction ? 'true' : 'false' }} }">
+    x-data="{ method: '{{ $hasUnpaidTransaction ? 'online' : ((($payment_gateway_enabled ?? true) || $qris_image_url) ? 'online' : 'cashier') }}', locked: {{ $hasUnpaidTransaction ? 'true' : 'false' }} }">
     <livewire:self-order.components.page-title-nav :backCart="true" :title="'Checkout'" :hasBack="true" :hasFilter="false" />
 
     <div class="max-w-md mx-auto px-4 space-y-5">
@@ -85,7 +85,7 @@
             </div>
             <div class="p-4">
                 <div class="grid grid-cols-1 gap-3">
-                    @if(($payment_gateway_enabled ?? true) === true)
+                    @if(($payment_gateway_enabled ?? true) || $qris_image_url)
                     <label class="relative flex items-center p-3.5 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:bg-gray-50 group"
                         :class="[
                             method === 'online' ? 'border-primary-60 bg-primary-10/60' : 'border-gray-200',
@@ -238,6 +238,12 @@
                         $price = $hasDiscount ? (int) $item['price_afterdiscount'] : (int) $item['price'];
                         $qty = (int) ($item['quantity'] ?? 1);
                         $lineSubtotal = $price * $qty;
+                        $itemAddons = $item['addons'] ?? [];
+                        foreach ($itemAddons as $addon) {
+                            $addonPrice = (int) ($addon['price'] ?? 0);
+                            $addonQty = (int) ($addon['quantity'] ?? 1);
+                            $lineSubtotal += $addonPrice * $addonQty * $qty;
+                        }
                     @endphp
                     <div class="flex gap-3">
                         <div class="flex-1 min-w-0">

@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
+use App\Models\TransactionItemAddon;
 use App\Models\VoucherCode;
 use App\Models\VoucherRedemption;
 use App\Services\PriceService;
@@ -65,8 +66,13 @@ class TransactionController extends Controller
             if ($method === 'cashier') {
                 return $this->processCashierPayment($sessionToken);
             }
-            $enabled = (bool) (Setting::current()->payment_gateway_enabled ?? true);
+            $setting = Setting::current();
+            $enabled = (bool) ($setting->payment_gateway_enabled ?? true);
             if (! $enabled) {
+                if ($setting->qris_image) {
+                    return $this->processQrisPayment($sessionToken);
+                }
+
                 return $this->processCashierPayment($sessionToken);
             }
 
@@ -186,7 +192,14 @@ class TransactionController extends Controller
             $grossSubtotal = 0;
             foreach ($cartItems as $item) {
                 $price = (isset($item['price_afterdiscount']) && (int) $item['price_afterdiscount'] > 0 && (int) $item['price_afterdiscount'] < (int) $item['price']) ? (int) $item['price_afterdiscount'] : (int) $item['price'];
-                $grossSubtotal += $price * ($item['quantity'] ?? 1);
+                $itemQty = (int) ($item['quantity'] ?? 1);
+                $grossSubtotal += $price * $itemQty;
+                $addons = $item['addons'] ?? [];
+                foreach ($addons as $addon) {
+                    $addonPrice = (int) ($addon['price'] ?? 0);
+                    $addonQty = (int) ($addon['quantity'] ?? 1);
+                    $grossSubtotal += $addonPrice * $addonQty * $itemQty;
+                }
             }
 
             $voucher = $this->resolveVoucherForCart($cartItems, $memberId, (string) $phone);
@@ -303,6 +316,23 @@ class TransactionController extends Controller
                         'note' => $cartItem['note'] ?? null,
                     ]);
 
+                    $addons = $cartItem['addons'] ?? [];
+                    foreach ($addons as $addon) {
+                        $addonId = (int) ($addon['id'] ?? 0);
+                        $addonPrice = (int) ($addon['price'] ?? 0);
+                        $addonQty = (int) ($addon['quantity'] ?? 1);
+                        $itemQty = (int) ($cartItem['quantity'] ?? 1);
+                        if ($addonId > 0) {
+                            TransactionItemAddon::query()->create([
+                                'transaction_item_id' => (int) $parent->id,
+                                'addon_id' => $addonId,
+                                'name' => $addon['name'],
+                                'quantity' => $addonQty * $itemQty,
+                                'price' => $addonPrice,
+                            ]);
+                        }
+                    }
+
                     $productId = (int) $cartItem['id'];
                     $product = $productsById->get($productId);
                     if (! $product || ! $product->is_package) {
@@ -376,6 +406,267 @@ class TransactionController extends Controller
         }
     }
 
+    public function processQrisPayment(string $sessionToken)
+    {
+        $uuid = (string) Str::uuid();
+
+        $cartItems = session('cart_items');
+
+        if (! is_array($cartItems)) {
+            $cartItems = [];
+        }
+        $checkout = app(SelfOrderCheckoutService::class);
+        $result = $checkout->validateAndHydrateCartItems($cartItems);
+        if ($result['changed']) {
+            session(['cart_items' => $result['items']]);
+
+            return redirect()->route('self-order.payment.cart')->with('error', 'Beberapa item tidak tersedia dan telah dihapus dari keranjang.');
+        }
+        $cartItems = $result['items'];
+        $variants = $result['variants'];
+
+        $name = session('name');
+        $phone = session('phone');
+        $email = session('email');
+        $memberId = session('member_id');
+        $tableId = session('dining_table_id');
+
+        if (empty($cartItems) || empty($name) || empty($phone) || empty($tableId)) {
+            return redirect()
+                ->route('self-order.payment.cart')
+                ->with('error', 'Data pemesanan belum lengkap.');
+        }
+
+        $table = DiningTable::find($tableId);
+        if (! $table) {
+            return redirect()
+                ->route('self-order.invalid')
+                ->with('error', 'Meja tidak valid.');
+        }
+
+        $transactionCode = Transaction::generateUniqueCode();
+
+        try {
+            $checkout->assertSufficientIngredientStock($cartItems, $variants);
+
+            $cartHash = $checkout->cartHash($cartItems);
+            $paymentSessionHash = hash('sha256', (string) session('self_order_token').'|'.$sessionToken);
+            $paymentIntentHash = hash('sha256', (string) session('self_order_token').'|'.$paymentSessionHash.'|'.$cartHash.'|online');
+
+            $existing = Transaction::query()
+                ->where('payment_intent_hash', $paymentIntentHash)
+                ->first();
+            if ($existing) {
+                session(['external_id' => $existing->external_id]);
+                session(['has_unpaid_transaction' => $existing->payment_status === 'pending']);
+
+                return redirect()->route('self-order.payment.status', ['code' => $existing->code]);
+            }
+
+            $grossSubtotal = 0;
+            foreach ($cartItems as $item) {
+                $price = (isset($item['price_afterdiscount']) && (int) $item['price_afterdiscount'] > 0 && (int) $item['price_afterdiscount'] < (int) $item['price']) ? (int) $item['price_afterdiscount'] : (int) $item['price'];
+                $qty = (int) ($item['quantity'] ?? 1);
+                $grossSubtotal += $price * $qty;
+                $addons = $item['addons'] ?? [];
+                foreach ($addons as $addon) {
+                    $addonPrice = (int) ($addon['price'] ?? 0);
+                    $addonQty = (int) ($addon['quantity'] ?? 1);
+                    $grossSubtotal += $addonPrice * $addonQty * $qty;
+                }
+            }
+
+            $voucher = $this->resolveVoucherForCart($cartItems, $memberId, (string) $phone);
+            if (! $voucher['ok']) {
+                return redirect()
+                    ->route('self-order.payment.page')
+                    ->with('error', (string) $voucher['message']);
+            }
+
+            $voucherDiscountAmount = (int) $voucher['voucher_discount_amount'];
+            $netSubtotal = max(0, (int) $grossSubtotal - $voucherDiscountAmount);
+
+            $setting = Setting::current();
+
+            $pointsToRedeem = 0;
+            $pointDiscountAmount = 0;
+
+            if ((bool) session('self_order_use_points') && (string) session('customer_type') === 'member' && is_numeric($memberId)) {
+                $member = Member::query()->find((int) $memberId);
+                $availablePoints = (int) ($member?->points ?? 0);
+                $desiredPoints = max(0, (int) session('self_order_points_to_redeem', 0));
+
+                $minRedemptionPoints = (int) ($setting->min_redemption_points ?? 0);
+                $redemptionValue = (float) ($setting->point_redemption_value ?? 0);
+
+                if ($minRedemptionPoints > 0 && $redemptionValue > 0 && $availablePoints >= $minRedemptionPoints && $netSubtotal > 0) {
+                    $maxPointsByAmount = (int) floor($netSubtotal / $redemptionValue);
+                    $pointsToRedeem = min($availablePoints, $maxPointsByAmount, $desiredPoints > 0 ? $desiredPoints : $availablePoints);
+
+                    if ($pointsToRedeem < $minRedemptionPoints) {
+                        $pointsToRedeem = 0;
+                    }
+
+                    if ($pointsToRedeem > 0) {
+                        $pointDiscountAmount = (int) app(\App\Services\PointService::class)->calculateRedemptionValue($pointsToRedeem);
+                        $pointDiscountAmount = min($pointDiscountAmount, $netSubtotal);
+                        $netSubtotal = max(0, (int) $netSubtotal - (int) $pointDiscountAmount);
+                    }
+                }
+            }
+
+            $taxRate = (float) ($setting->tax_rate ?? 0);
+            $taxBase = (bool) ($setting->discount_applies_before_tax ?? true) ? $netSubtotal : $grossSubtotal;
+            $taxAmount = PriceService::calculateTax($taxBase, $taxRate);
+            $totalBeforeRounding = $netSubtotal + $taxAmount;
+            $roundingAmount = 0;
+            $feeAmount = (int) round($totalBeforeRounding * 0.007);
+            $totalAfterFee = $totalBeforeRounding + $feeAmount;
+
+            $transaction = DB::transaction(function () use ($cartHash, $cartItems, $email, $feeAmount, $grossSubtotal, $memberId, $name, $paymentIntentHash, $paymentSessionHash, $phone, $pointDiscountAmount, $pointsToRedeem, $roundingAmount, $table, $taxAmount, $taxRate, $totalAfterFee, $transactionCode, $uuid, $voucher, $voucherDiscountAmount): Transaction {
+                $transaction = new Transaction;
+                $transaction->channel = 'self_order';
+                $transaction->checkout_link = '-';
+                $transaction->payment_method = 'qris';
+                $transaction->member_id = is_numeric($memberId) ? (int) $memberId : null;
+                $transaction->email = ! empty($email) ? (string) $email : null;
+                $transaction->phone = $phone;
+                $transaction->order_type = 'dine_in';
+                $transaction->name = $name;
+                $transaction->voucher_campaign_id = $voucher['voucher_campaign_id'];
+                $transaction->voucher_code_id = $voucher['voucher_code_id'];
+                $transaction->voucher_code = $voucher['voucher_code'];
+                $transaction->subtotal = $grossSubtotal;
+                $transaction->voucher_discount_amount = (int) $voucherDiscountAmount;
+                $transaction->discount_total_amount = (int) $voucherDiscountAmount + (int) $pointDiscountAmount;
+                $transaction->tax_percentage = $taxRate;
+                $transaction->tax_amount = $taxAmount;
+                $transaction->payment_fee_amount = $feeAmount;
+                $transaction->rounding_amount = $roundingAmount;
+                $transaction->dining_table_id = $table->id;
+                $transaction->total = $totalAfterFee;
+                $transaction->external_id = $uuid;
+                $transaction->code = $transactionCode;
+                $transaction->payment_status = 'pending';
+                $transaction->self_order_token = (string) session('self_order_token');
+                $transaction->payment_session_hash = $paymentSessionHash;
+                $transaction->cart_hash = $cartHash;
+                $transaction->payment_intent_hash = $paymentIntentHash;
+                $transaction->save();
+
+                if ($pointsToRedeem > 0) {
+                    app(\App\Services\PointService::class)->redeemPoints($transaction, $pointsToRedeem);
+                }
+
+                $allocations = (array) ($voucher['allocations'] ?? []);
+
+                $productIds = collect($cartItems)
+                    ->map(fn (array $row) => (int) ($row['id'] ?? 0))
+                    ->filter(fn (int $id) => $id > 0)
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $productsById = $productIds === []
+                    ? collect()
+                    : Product::query()
+                        ->whereIn('id', $productIds)
+                        ->with(['packageItems.componentVariant.product'])
+                        ->get()
+                        ->keyBy('id');
+
+                foreach ($cartItems as $index => $cartItem) {
+                    $price = (isset($cartItem['price_afterdiscount']) && (int) $cartItem['price_afterdiscount'] > 0 && (int) $cartItem['price_afterdiscount'] < (int) $cartItem['price']) ? (int) $cartItem['price_afterdiscount'] : (int) $cartItem['price'];
+
+                    $parent = TransactionItem::create([
+                        'transaction_id' => $transaction->id,
+                        'product_id' => $cartItem['id'],
+                        'product_variant_id' => $cartItem['variant_id'] ?? null,
+                        'quantity' => $cartItem['quantity'],
+                        'price' => $price,
+                        'subtotal' => $price * $cartItem['quantity'],
+                        'voucher_discount_amount' => (int) ($allocations[$index] ?? 0),
+                        'note' => $cartItem['note'] ?? null,
+                    ]);
+
+                    $addons = $cartItem['addons'] ?? [];
+                    foreach ($addons as $addon) {
+                        $addonId = (int) ($addon['id'] ?? 0);
+                        $addonPrice = (int) ($addon['price'] ?? 0);
+                        $addonQty = (int) ($addon['quantity'] ?? 1);
+                        $itemQty = (int) ($cartItem['quantity'] ?? 1);
+                        if ($addonId > 0) {
+                            TransactionItemAddon::query()->create([
+                                'transaction_item_id' => (int) $parent->id,
+                                'addon_id' => $addonId,
+                                'name' => $addon['name'],
+                                'quantity' => $addonQty * $itemQty,
+                                'price' => $addonPrice,
+                            ]);
+                        }
+                    }
+
+                    $productId = (int) ($cartItem['id'] ?? 0);
+                    $product = $productsById->get($productId);
+                    if (! $product || ! $product->is_package) {
+                        continue;
+                    }
+
+                    $qty = (int) ($cartItem['quantity'] ?? 0);
+                    if ($qty <= 0) {
+                        continue;
+                    }
+
+                    foreach ($product->packageItems as $packageItem) {
+                        $componentVariant = $packageItem->componentVariant;
+                        if (! $componentVariant) {
+                            continue;
+                        }
+
+                        $componentQty = $qty * (int) $packageItem->quantity;
+                        if ($componentQty <= 0) {
+                            continue;
+                        }
+
+                        TransactionItem::create([
+                            'transaction_id' => $transaction->id,
+                            'parent_transaction_item_id' => (int) $parent->id,
+                            'product_id' => (int) $componentVariant->product_id,
+                            'product_variant_id' => (int) $componentVariant->id,
+                            'quantity' => $componentQty,
+                            'price' => 0,
+                            'subtotal' => 0,
+                            'voucher_discount_amount' => 0,
+                            'note' => $cartItem['note'] ?? null,
+                        ]);
+                    }
+                }
+
+                return $transaction;
+            });
+
+            app(TransactionEventService::class)->record($transaction, 'self_order.created', [
+                'payment_method' => (string) $transaction->payment_method,
+                'payment_status' => (string) $transaction->payment_status,
+                'total' => (int) $transaction->total,
+            ]);
+
+            session(['external_id' => $uuid]);
+            session(['has_unpaid_transaction' => true]);
+
+            return redirect()->route('self-order.payment.status', ['code' => $transactionCode]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create qris transaction', [
+                'exception' => $e,
+            ]);
+
+            return redirect()
+                ->route('self-order.payment.failure')
+                ->with('error', 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.');
+        }
+    }
+
     public function processPayment(string $sessionToken)
     {
         $uuid = (string) Str::uuid();
@@ -442,6 +733,12 @@ class TransactionController extends Controller
                 $price = (isset($item['price_afterdiscount']) && (int) $item['price_afterdiscount'] > 0 && (int) $item['price_afterdiscount'] < (int) $item['price']) ? (int) $item['price_afterdiscount'] : (int) $item['price'];
                 $qty = (int) ($item['quantity'] ?? 1);
                 $grossSubtotal += $price * $qty;
+                $addons = $item['addons'] ?? [];
+                foreach ($addons as $addon) {
+                    $addonPrice = (int) ($addon['price'] ?? 0);
+                    $addonQty = (int) ($addon['quantity'] ?? 1);
+                    $grossSubtotal += $addonPrice * $addonQty * $qty;
+                }
             }
 
             $voucher = $this->resolveVoucherForCart($cartItems, $memberId, (string) $phone);
@@ -629,6 +926,23 @@ class TransactionController extends Controller
                         'voucher_discount_amount' => (int) ($allocations[$index] ?? 0),
                         'note' => $cartItem['note'] ?? null,
                     ]);
+
+                    $addons = $cartItem['addons'] ?? [];
+                    foreach ($addons as $addon) {
+                        $addonId = (int) ($addon['id'] ?? 0);
+                        $addonPrice = (int) ($addon['price'] ?? 0);
+                        $addonQty = (int) ($addon['quantity'] ?? 1);
+                        $itemQty = (int) ($cartItem['quantity'] ?? 1);
+                        if ($addonId > 0) {
+                            TransactionItemAddon::query()->create([
+                                'transaction_item_id' => (int) $parent->id,
+                                'addon_id' => $addonId,
+                                'name' => $addon['name'],
+                                'quantity' => $addonQty * $itemQty,
+                                'price' => $addonPrice,
+                            ]);
+                        }
+                    }
 
                     $productId = (int) ($cartItem['id'] ?? 0);
                     $product = $productsById->get($productId);

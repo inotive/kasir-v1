@@ -91,6 +91,15 @@
                                     @endforeach
                                 </div>
                             @endif
+                            @if ($item->itemAddons && $item->itemAddons->count() > 0)
+                                <div class="mt-1 flex flex-wrap gap-1">
+                                    @foreach ($item->itemAddons as $ia)
+                                        <span class="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
+                                            {{ $ia->addon?->name ?? 'Add-on' }} {{ $ia->quantity }}x +Rp{{ number_format((int) $ia->price * (int) $ia->quantity, 0, ',', '.') }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     @endforeach
                 </div>

@@ -2,6 +2,7 @@
 
 namespace App\Services\SelfOrder;
 
+use App\Models\Addon;
 use App\Models\ProductVariant;
 use Illuminate\Support\Collection;
 
@@ -82,6 +83,7 @@ class SelfOrderCheckoutService
                 'selected' => (bool) ($item['selected'] ?? true),
                 'note' => $note,
                 'variant_id' => (int) $variant->id,
+                'addons' => $this->validateAddons($item['addons'] ?? []),
             ];
         }
 
@@ -99,12 +101,57 @@ class SelfOrderCheckoutService
                 'variant_id' => (int) ($i['variant_id'] ?? 0),
                 'quantity' => (int) ($i['quantity'] ?? 0),
                 'note' => (string) ($i['note'] ?? ''),
+                'addon_ids' => collect($i['addons'] ?? [])->pluck('id')->sort()->values()->all(),
             ])
             ->sortBy('variant_id')
             ->values()
             ->toJson();
 
         return hash('sha256', (string) $payload);
+    }
+
+    private function validateAddons(array $rawAddons): array
+    {
+        if (empty($rawAddons)) {
+            return [];
+        }
+
+        $addonIds = collect($rawAddons)
+            ->pluck('id')
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($addonIds)) {
+            return [];
+        }
+
+        $addons = Addon::query()
+            ->where('is_available', true)
+            ->whereIn('id', $addonIds)
+            ->get()
+            ->keyBy('id');
+
+        $validated = [];
+        foreach ($rawAddons as $raw) {
+            $addonId = (int) ($raw['id'] ?? 0);
+            $addon = $addons->get($addonId);
+            if (! $addon) {
+                continue;
+            }
+
+            $qty = max(1, (int) ($raw['quantity'] ?? 1));
+            $validated[] = [
+                'id' => (int) $addon->id,
+                'name' => (string) $addon->name,
+                'price' => (int) round((float) $addon->price),
+                'quantity' => $qty,
+            ];
+        }
+
+        return $validated;
     }
 
     public function assertSufficientIngredientStock(array $items, Collection $variants): void {}

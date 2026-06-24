@@ -148,6 +148,15 @@
                                     @if(! empty($item->note))
                                         <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Catatan: {{ $item->note }}</div>
                                     @endif
+                                    @if($item->itemAddons->isNotEmpty())
+                                        <div style="margin-top: 4px;">
+                                            @foreach($item->itemAddons as $ia)
+                                                <span style="display: inline-block; background: #eff6ff; color: #2563eb; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-right: 4px; margin-bottom: 2px;">
+                                                    {{ $ia->addon?->name ?? 'Add-on' }} {{ $ia->quantity }}x +Rp{{ number_format((int) $ia->price * (int) $ia->quantity, 0, ',', '.') }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                     <div style="font-size: 12px; color: #64748b; margin-top: 4px;">{{ (int) $item->quantity }} x Rp {{ number_format((int) $item->price, 0, ',', '.') }}</div>
                                 </td>
                                 <td style="padding: 12px 10px; text-align: right; vertical-align: top; border-bottom: 1px solid #f1f5f9; color: #111827; font-size: 13px; font-weight: 800;">

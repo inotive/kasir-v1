@@ -83,7 +83,32 @@
                         </div>
                     @endif
 
-                    @if ($isOnlinePending)
+                    @if ($isOnlinePending && (string) ($transaction->payment_method ?? '') === 'qris')
+                        @php $qrisUrl = $this->qrisImageUrl(); @endphp
+                        <div class="rounded-2xl border border-primary-100 bg-primary-10/40 p-4 space-y-3">
+                            <div>
+                                <p class="text-sm font-bold text-gray-900">Pembayaran QRIS</p>
+                                <p class="mt-0.5 text-xs text-gray-600">Scan QRIS di bawah ini menggunakan aplikasi pembayaran (GoPay, OVO, DANA, Mobile Banking, dll).</p>
+                            </div>
+
+                            @if ($qrisUrl)
+                                <div class="flex items-center justify-center rounded-xl bg-white p-4">
+                                    <img src="{{ $qrisUrl }}" alt="QRIS" class="h-64 w-64 object-contain" />
+                                </div>
+                            @else
+                                <div class="flex items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500">
+                                    Gambar QRIS belum tersedia. Silakan hubungi kasir.
+                                </div>
+                            @endif
+
+                            <div class="rounded-xl border border-warning-200 bg-warning-50 p-3">
+                                <p class="text-xs text-warning-800">
+                                    <strong>Penting:</strong> Setelah melakukan pembayaran, tunjukkan bukti pembayaran ke kasir agar pesanan diproses.
+                                </p>
+                            </div>
+
+                        </div>
+                    @elseif ($isOnlinePending)
                         <div class="rounded-2xl border border-primary-100 bg-primary-10/40 p-4 space-y-3">
                             <div>
                                 <p class="text-sm font-bold text-gray-900">Pembayaran Online</p>
@@ -99,9 +124,6 @@
                                 </a>
                             @endif
 
-                            <a href="{{ route('self-order.payment.page') }}" wire:navigate class="flex w-full items-center justify-center gap-2 rounded-2xl bg-white border border-gray-200 hover:border-primary-40 px-6 py-3 text-gray-900 font-bold text-sm">
-                                <span>Ganti Metode Pembayaran</span>
-                            </a>
                         </div>
                     @endif
 

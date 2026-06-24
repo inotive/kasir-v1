@@ -307,6 +307,15 @@
                                                 @if (! empty($item['variant_name']))
                                                     <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ $item['variant_name'] }}</p>
                                                 @endif
+                                                @if (! empty($item['addons']))
+                                                    <div class="mt-1 flex flex-wrap gap-1">
+                                                        @foreach ($item['addons'] as $addon)
+                                                            <span class="inline-flex items-center gap-1 rounded-md bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                                                                {{ $addon['name'] }} {{ (int) ($addon['quantity'] ?? 1) }}x +Rp{{ number_format((int) ($addon['price'] ?? 0) * (int) ($addon['quantity'] ?? 1), 0, ',', '.') }}
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
                                                 <div class="mt-1 flex flex-wrap items-center gap-2">
                                                     <span class="text-sm font-semibold text-brand-600 dark:text-brand-400">Rp {{ number_format($price, 0, ',', '.') }}</span>
                                                     @if ($isPromo)
@@ -328,13 +337,20 @@
                                             </div>
                                         </div>
 
-                                        <div class="mt-3 flex items-center justify-between gap-3">
+                                            <div class="mt-3 flex items-center justify-between gap-3">
                                             <div class="inline-flex items-center gap-2">
                                                 <button type="button" wire:click="decrement({{ (int) $idx }})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">-</button>
                                                 <span class="w-8 text-center text-sm font-semibold text-gray-800 dark:text-white/90">{{ $qty }}</span>
                                                 <button type="button" wire:click="increment({{ (int) $idx }})" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">+</button>
                                             </div>
-                                            <span class="text-sm font-semibold text-gray-800 dark:text-white/90">Rp {{ number_format($qty * $price, 0, ',', '.') }}</span>
+                                            @php
+                                                $addonTotal = 0;
+                                                foreach (($item['addons'] ?? []) as $addon) {
+                                                    $addonTotal += (int) ($addon['price'] ?? 0) * (int) ($addon['quantity'] ?? 1);
+                                                }
+                                                $lineTotal = $qty * $price + $addonTotal * $qty;
+                                            @endphp
+                                            <span class="text-sm font-semibold text-gray-800 dark:text-white/90">Rp {{ number_format($lineTotal, 0, ',', '.') }}</span>
                                         </div>
 
                                         <div class="mt-3">
@@ -538,50 +554,156 @@
 
     @if ($variantModalOpen)
         <div class="fixed inset-0 z-[100000] flex items-center justify-center p-4" aria-modal="true" role="dialog">
-            <div class="fixed inset-0 bg-black/50" wire:click="$set('variantModalOpen', false)"></div>
-            <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
-                <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
-                    <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">Pilih Varian</h3>
-                    <button type="button" wire:click="$set('variantModalOpen', false)" class="text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
-                        Tutup
-                    </button>
-                </div>
-                <div class="p-5">
-                    <div class="space-y-2">
-                        @foreach ($variantOptions as $v)
-                            @php
-                                $isPromo = (int) $v['final_price'] < (int) $v['price'];
-                                $variantId = (int) ($v['id'] ?? 0);
-                                $stockStatus = $variantId > 0 ? ($this->variantStockStatuses[$variantId] ?? null) : null;
-                                $stockBadge = null;
-                                if ($stockStatus === 'missing_bom') {
-                                    $stockBadge = ['label' => 'BOM belum diatur', 'class' => 'bg-gray-900/70 text-white'];
-                                } elseif ($stockStatus === 'insufficient') {
-                                    $stockBadge = ['label' => 'Stok bahan kurang', 'class' => 'bg-error-600 text-white'];
-                                } elseif ($stockStatus === 'low') {
-                                    $stockBadge = ['label' => 'Stok menipis', 'class' => 'bg-warning-600 text-white'];
-                                }
-                            @endphp
-                            <button type="button" wire:click="addVariantToCart({{ (int) $v['id'] }})" class="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-white/[0.03]">
-                                <div class="min-w-0">
-                                    <p class="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{{ $v['name'] }}</p>
-                                    <div class="mt-0.5 flex flex-wrap items-center gap-2">
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">Rp {{ number_format((int) $v['final_price'], 0, ',', '.') }}</p>
-                                        @if ($stockBadge)
-                                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $stockBadge['class'] }}">{{ $stockBadge['label'] }}</span>
-                                        @endif
+            <div class="fixed inset-0 bg-black/50" wire:click="closeVariantModal"></div>
+            <div class="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
+                @if ($pendingVariantForAddon)
+                    <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+                        <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">Pilih Add-on</h3>
+                        <button type="button" wire:click="closeVariantModal" class="text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
+                            Tutup
+                        </button>
+                    </div>
+                    <div class="border-b border-gray-200 bg-gray-50 px-5 py-3 dark:border-gray-800 dark:bg-gray-800/50">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ $pendingVariantForAddon['variant_name'] }}</span>
+                            <span class="text-sm font-bold text-brand-600">Rp {{ number_format($pendingVariantForAddon['price'], 0, ',', '.') }}</span>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        {{-- Search dropdown --}}
+                        <div class="relative" x-data="{ addonDropdownOpen: false, addonSearch2: '', addonDisplayLimit: 10 }" @click.away="addonDropdownOpen = false">
+                            <button type="button" @click="addonDropdownOpen = !addonDropdownOpen" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-left text-sm flex items-center justify-between hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800">
+                                <span x-show="@js(count($this->selectedAddonsWithQty)) === 0" class="text-gray-400">Pilih add-on...</span>
+                                <span x-show="@js(count($this->selectedAddonsWithQty)) > 0" class="font-medium text-gray-800 dark:text-white/90">
+                                    @js(count($this->selectedAddonsWithQty)) add-on dipilih
+                                </span>
+                                <svg class="h-4 w-4 text-gray-400 transition" :class="addonDropdownOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+
+                            <div x-show="addonDropdownOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-1" class="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-gray-200 bg-white shadow-theme-lg dark:border-gray-800 dark:bg-gray-900">
+                                <div class="p-2 border-b border-gray-100 dark:border-gray-800">
+                                    <div class="relative">
+                                        <input type="text" x-model="addonSearch2" wire:model.live.debounce.300ms="addonSearch" @input="addonDisplayLimit = 10" @click.stop placeholder="Cari add-on..." class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-sm text-gray-800 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500">
+                                        <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    @if ($isPromo)
-                                        <span class="text-xs text-gray-400 line-through">Rp {{ number_format((int) $v['price'], 0, ',', '.') }}</span>
+                                <div class="max-h-48 overflow-y-auto">
+                                    @forelse ($addonSearchResults as $ao)
+                                        @php
+                                            $aid = (int) ($ao['id'] ?? 0);
+                                            $isSel = collect($this->selectedAddonsWithQty)->contains(fn($sa) => (int) $sa['id'] === $aid);
+                                        @endphp
+                                        <button type="button"
+                                            @click="addonDropdownOpen = false; $wire.addAddonToSelection({{ $aid }}, @js($ao['name']), {{ (int) ($ao['price'] ?? 0) }})"
+                                            class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition hover:bg-gray-50 dark:hover:bg-white/[0.03] {{ $isSel ? 'bg-brand-50 dark:bg-brand-500/10' : '' }}">
+                                            <div class="min-w-0 flex-1">
+                                                <span class="font-medium text-gray-800 dark:text-white/90">{{ $ao['name'] }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-2 shrink-0">
+                                                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Rp {{ number_format((int) ($ao['price'] ?? 0), 0, ',', '.') }}</span>
+                                                @if($isSel)
+                                                    <svg class="h-4 w-4 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                                @endif
+                                            </div>
+                                        </button>
+                                    @empty
+                                        @if ($addonSearch !== '')
+                                            <p class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">Tidak ada add-on ditemukan.</p>
+                                        @endif
+                                    @endforelse
+                                    @if ($addonHasMore)
+                                        <button wire:click="loadMoreAddons()" class="w-full border-t border-gray-100 py-2.5 text-center text-xs font-medium text-gray-500 hover:text-brand-600 dark:border-gray-800">Muat lebih banyak...</button>
                                     @endif
-                                    <span class="rounded-lg bg-brand-500 px-2 py-1 text-xs font-semibold text-white">Tambah</span>
                                 </div>
-                            </button>
-                        @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Selected addon cards (flex column) --}}
+                        @if (count($this->selectedAddonsWithQty) > 0)
+                            <div class="flex flex-col gap-2">
+                                @foreach ($this->selectedAddonsWithQty as $sa)
+                                    <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+                                        <div class="flex items-center gap-3 min-w-0">
+                                            <button wire:click="removeAddonFromSelection({{ (int) $sa['id'] }})" class="shrink-0 h-6 w-6 rounded-full bg-red-50 flex items-center justify-center hover:bg-red-100 dark:bg-red-500/20 dark:hover:bg-red-500/30">
+                                                <svg class="h-3.5 w-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            </button>
+                                            <span class="font-medium text-sm text-gray-800 dark:text-white/90">{{ $sa['name'] }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-3 shrink-0">
+                                            <span class="text-sm font-semibold text-gray-600 dark:text-gray-400">Rp {{ number_format((int) $sa['price'], 0, ',', '.') }}</span>
+                                            <div class="flex items-center gap-1">
+                                                <button wire:click="updateAddonQty({{ (int) $sa['id'] }}, {{ (int) $sa['quantity'] - 1 }})" class="h-7 w-7 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                                                    <svg class="mx-auto h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+                                                </button>
+                                                <span class="w-6 text-center text-sm font-bold text-gray-800 dark:text-white/90">{{ (int) $sa['quantity'] }}</span>
+                                                <button wire:click="updateAddonQty({{ (int) $sa['id'] }}, {{ (int) $sa['quantity'] + 1 }})" class="h-7 w-7 rounded-full bg-brand-500 text-white hover:bg-brand-600">
+                                                    <svg class="mx-auto h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
-                </div>
+                    <div class="border-t border-gray-200 px-5 py-4 dark:border-gray-800">
+                        <button type="button" wire:click="confirmAddonsToCart" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 w-full rounded-lg px-4 py-3 text-sm font-medium text-white transition">
+                            Tambah ke Keranjang
+                        </button>
+                    </div>
+                @else
+                    <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+                        <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">
+                            Pilih Varian
+                        </h3>
+                        <button type="button" wire:click="closeVariantModal" class="text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
+                            Tutup
+                        </button>
+                    </div>
+                    <div class="custom-scrollbar max-h-[70vh] overflow-y-auto p-5">
+                        @if (count($variantOptions) > 0)
+                            <div class="mb-4">
+                                <h4 class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Varian</h4>
+                                <div class="space-y-2">
+                                    @foreach ($variantOptions as $v)
+                                        @php
+                                            $isPromo = (int) $v['final_price'] < (int) $v['price'];
+                                            $variantId = (int) ($v['id'] ?? 0);
+                                            $stockStatus = $variantId > 0 ? ($this->variantStockStatuses[$variantId] ?? null) : null;
+                                            $stockBadge = null;
+                                            if ($stockStatus === 'missing_bom') {
+                                                $stockBadge = ['label' => 'BOM belum diatur', 'class' => 'bg-gray-900/70 text-white'];
+                                            } elseif ($stockStatus === 'insufficient') {
+                                                $stockBadge = ['label' => 'Stok bahan kurang', 'class' => 'bg-error-600 text-white'];
+                                            } elseif ($stockStatus === 'low') {
+                                                $stockBadge = ['label' => 'Stok menipis', 'class' => 'bg-warning-600 text-white'];
+                                            }
+                                        @endphp
+                                        <button type="button" wire:click="addVariantToCart({{ (int) $v['id'] }})" class="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-left shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-white/[0.03]">
+                                            <div class="min-w-0">
+                                                <p class="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{{ $v['name'] }}</p>
+                                                <div class="mt-0.5 flex flex-wrap items-center gap-2">
+                                                    <p class="text-xs text-gray-500 dark:text-gray-400">Rp {{ number_format((int) $v['final_price'], 0, ',', '.') }}</p>
+                                                    @if ($stockBadge)
+                                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $stockBadge['class'] }}">{{ $stockBadge['label'] }}</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                @if ($isPromo)
+                                                    <span class="text-xs text-gray-400 line-through">Rp {{ number_format((int) $v['price'], 0, ',', '.') }}</span>
+                                                @endif
+                                                <span class="rounded-lg bg-brand-500 px-2 py-1 text-xs font-semibold text-white">Tambah</span>
+                                            </div>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+
+                    </div>
+                @endif
             </div>
         </div>
     @endif
@@ -1044,17 +1166,31 @@
                                     <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
                                         <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
                                             <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Customer</p>
-                                            <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                                <div>
-                                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
-                                                    <input wire:model.live="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="Walk-in" @disabled($cartLocked) />
-                                                    <x-common.input-error for="customerName" />
+                                            <div class="mt-3">
+                                                <div class="flex gap-4 mb-3">
+                                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                                        <input type="radio" wire:model.live="customerType" value="walk_in" @disabled($cartLocked) class="text-brand-600 focus:ring-brand-500">
+                                                        <span class="text-sm text-gray-700 dark:text-gray-300">Walk-in</span>
+                                                    </label>
+                                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                                        <input type="radio" wire:model.live="customerType" value="member" @disabled($cartLocked) class="text-brand-600 focus:ring-brand-500">
+                                                        <span class="text-sm text-gray-700 dark:text-gray-300">Member</span>
+                                                    </label>
                                                 </div>
-                                                <div>
-                                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Telepon (Opsional)</label>
-                                                    <input wire:model.live="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) />
-                                                    <x-common.input-error for="customerPhone" />
-                                                </div>
+                                                @if ($customerType === 'member')
+                                                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                        <div>
+                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
+                                                            <input wire:model.live="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="Nama" @disabled($cartLocked) />
+                                                            <x-common.input-error for="customerName" />
+                                                        </div>
+                                                        <div>
+                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Telepon</label>
+                                                            <input wire:model.live="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) />
+                                                            <x-common.input-error for="customerPhone" />
+                                                        </div>
+                                                    </div>
+                                                @endif
                                             </div>
                                         </div>
 
@@ -1100,7 +1236,38 @@
                                                             Rp
                                                         </div>
                                                         <input 
-                                                            x-data="currencyInput($wire.entangle('cashReceived'))"
+                                                            x-data="{
+                                                                displayValue: '',
+                                                                init() {
+                                                                    this.formatDisplay();
+                                                                    this.$watch('$wire.cashReceived', (val) => {
+                                                                        const currentNumeric = this.unformat(this.displayValue);
+                                                                        if (val !== currentNumeric) {
+                                                                            this.formatDisplay();
+                                                                        }
+                                                                    });
+                                                                },
+                                                                formatDisplay() {
+                                                                    const val = this.$wire.cashReceived;
+                                                                    if (val === null || val === undefined || val === '') {
+                                                                        this.displayValue = '';
+                                                                        return;
+                                                                    }
+                                                                    this.displayValue = new Intl.NumberFormat('id-ID').format(val);
+                                                                },
+                                                                unformat(val) {
+                                                                    if (!val) return null;
+                                                                    const raw = val.replace(/[^\d]/g, '');
+                                                                    return raw === '' ? null : parseInt(raw, 10);
+                                                                },
+                                                                handleInput(e) {
+                                                                    const raw = this.unformat(e.target.value);
+                                                                    $wire.set('cashReceived', raw !== null ? String(raw) : null);
+                                                                    this.displayValue = raw !== null 
+                                                                        ? new Intl.NumberFormat('id-ID').format(raw) 
+                                                                        : '';
+                                                                }
+                                                            }"
                                                             x-model="displayValue"
                                                             @input="handleInput"
                                                             type="text"

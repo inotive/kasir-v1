@@ -32,9 +32,20 @@ class MenuHelper
             ],
             [
                 'name' => 'Produk',
-                'path' => self::path('products.index'),
                 'icon' => 'products',
                 'permission' => 'products.view',
+                'subItems' => [
+                    [
+                        'name' => 'Data Produk',
+                        'path' => self::path('products.index'),
+                        'permission' => 'products.view',
+                    ],
+                    [
+                        'name' => 'Add-on',
+                        'path' => self::path('addons.index'),
+                        'permission' => 'products.view',
+                    ],
+                ],
             ],
             [
                 'name' => 'Meja & Qr Code',

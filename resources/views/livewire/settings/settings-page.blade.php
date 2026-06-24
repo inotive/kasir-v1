@@ -127,18 +127,44 @@
                                     </div>
                                 </div>
 
-                                <div class="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                                    <div class="flex items-start justify-between gap-4">
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Payment Gateway</p>
-                                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Mengaktifkan pembayaran online bila sudah dikonfigurasi.</p>
+                                    <div class="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div>
+                                                <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Payment Gateway</p>
+                                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Mengaktifkan pembayaran online bila sudah dikonfigurasi.</p>
+                                            </div>
+                                            <label class="inline-flex cursor-pointer items-center gap-2">
+                                                <input wire:model.live="payment_gateway_enabled" type="checkbox" {{ $canEditStore ? '' : 'disabled' }} class="h-5 w-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900" />
+                                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $payment_gateway_enabled ? 'Aktif' : 'Nonaktif' }}</span>
+                                            </label>
                                         </div>
-                                        <label class="inline-flex cursor-pointer items-center gap-2">
-                                            <input wire:model.live="payment_gateway_enabled" type="checkbox" {{ $canEditStore ? '' : 'disabled' }} class="h-5 w-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900" />
-                                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $payment_gateway_enabled ? 'Aktif' : 'Nonaktif' }}</span>
-                                        </label>
+
+                                        @if (! $payment_gateway_enabled)
+                                            <div class="mt-4 space-y-3">
+                                                <p class="text-sm font-semibold text-gray-800 dark:text-white/90">QRIS Statis</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">Upload gambar QRIS yang akan ditampilkan di halaman pembayaran mandiri.</p>
+                                                @if ($this->qrisImageUrl())
+                                                    <div class="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                                                        <img src="{{ $this->qrisImageUrl() }}" alt="QRIS" class="h-48 w-48 rounded-xl object-contain" />
+                                                    </div>
+                                                    @if ($canEditStore)
+                                                        <button type="button" x-on:click.prevent="$dispatch('confirm', { message: 'Hapus gambar QRIS?', method: 'deleteQrisImage', args: [] })" class="text-sm text-error-600 hover:text-error-700">
+                                                            Hapus
+                                                        </button>
+                                                    @endif
+                                                @else
+                                                    <div class="flex items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                                                        Belum ada QRIS
+                                                    </div>
+                                                @endif
+                                                <div>
+                                                    <input wire:model="qris_image_upload" type="file" accept="image/*" {{ $canEditStore ? '' : 'disabled' }} class="block w-full text-sm text-gray-600 disabled:cursor-not-allowed disabled:opacity-60 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-600 dark:text-gray-300" />
+                                                    <x-common.input-error for="qris_image_upload" />
+                                                </div>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">Ukuran maksimal 2MB.</p>
+                                            </div>
+                                        @endif
                                     </div>
-                                </div>
                             </div>
 
                             <div class="md:col-span-4">

@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
         $middleware->alias([
             'active' => \App\Http\Middleware\EnsureActiveUser::class,
             'active.tenant' => \App\Http\Middleware\EnsureActiveTenant::class,

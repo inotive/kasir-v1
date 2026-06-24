@@ -33,7 +33,7 @@
         $appUrlScheme = parse_url(config('app.url'), PHP_URL_SCHEME);
         $scheme = is_string($appUrlScheme) && $appUrlScheme !== '' ? $appUrlScheme : 'https';
         $adminDomain = (string) config('domains.admin', '');
-        $adminSignInUrl = $adminDomain !== '' ? $scheme.'://'.$adminDomain.'/signin' : url('/admin/signin');
+        $adminSignInUrl = $adminDomain !== '' ? $scheme.'://'.$adminDomain.'/admin/signin' : url('/admin/signin');
     @endphp
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])

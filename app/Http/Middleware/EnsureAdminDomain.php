@@ -11,6 +11,11 @@ class EnsureAdminDomain
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Subdomain tenant yang valid selalu diizinkan, walau ADMIN_DOMAIN di-set.
+        if (Tenant::checkCurrent()) {
+            return $next($request);
+        }
+
         $adminDomain = (string) config('domains.admin', '');
 
         // If ADMIN_DOMAIN is set, use strict matching (existing behavior)

@@ -43,7 +43,7 @@ return [
             'root' => storage_path('app/public'),
             'url' => env('ASSET_URL')
                 ? rtrim((string) env('ASSET_URL'), '/').'/storage'
-                : '/storage',
+                : rtrim((string) env('APP_URL', ''), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

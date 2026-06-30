@@ -52,6 +52,9 @@
                                 <div class="inline-flex items-center gap-2">
                                     <a href="{{ route('tenants.edit', $t) }}" wire:navigate
                                         class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]">Ubah</a>
+                                    <button type="button"
+                                        x-on:click.prevent="$dispatch('confirm', { message: 'Yakin ingin menghapus tenant ini? Semua data terkait akan ikut terhapus.', method: 'deleteTenant', args: [{{ $t->id }}] })"
+                                        class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]">Hapus</button>
                                 </div>
                             </td>
                         </tr>
@@ -66,5 +69,5 @@
         </div>
     </div>
 
-    <x-common.confirm-modal confirm-label="Ya, ubah" />
+    <x-common.confirm-modal confirm-label="Ya, lanjutkan" />
 </div>

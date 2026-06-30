@@ -37,6 +37,20 @@ class TenantListPage extends Component
         session()->flash('toast', 'Status tenant berhasil diperbarui.');
     }
 
+    public function deleteTenant(int $tenantId): void
+    {
+        $this->authorize('dashboard.access');
+
+        if (auth()->user()->tenant_id !== null) {
+            abort(403);
+        }
+
+        $tenant = Tenant::findOrFail($tenantId);
+        $tenant->delete();
+
+        session()->flash('toast', 'Tenant berhasil dihapus.');
+    }
+
     public function render(): View
     {
         $tenants = Tenant::query()

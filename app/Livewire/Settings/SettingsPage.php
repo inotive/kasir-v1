@@ -91,10 +91,7 @@ class SettingsPage extends Component
 
     public function mount(): void
     {
-        abort_unless(
-            (auth()->user()?->can('settings.view') ?? false) || (auth()->user()?->can('settings.printers.devices') ?? false),
-            403
-        );
+        $this->assertCanAccessSettingsPage();
 
         $setting = Setting::current();
 
@@ -626,8 +623,16 @@ class SettingsPage extends Component
 
     public function render(): View
     {
-        $this->authorize('settings.view');
+        $this->assertCanAccessSettingsPage();
 
         return view('livewire.settings.settings-page')->layout('layouts.app', ['title' => $this->title]);
+    }
+
+    private function assertCanAccessSettingsPage(): void
+    {
+        abort_unless(
+            (auth()->user()?->can('settings.view') ?? false) || (auth()->user()?->can('settings.printers.devices') ?? false),
+            403
+        );
     }
 }

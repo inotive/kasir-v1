@@ -3,6 +3,7 @@
 namespace App\Livewire\Reports;
 
 use App\Models\OperatingExpense;
+use App\Models\Tenant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -218,9 +219,12 @@ class OperatingExpensesPage extends Component
         $rows = $this->baseQuery()->orderByDesc('expense_date')->orderByDesc('id')->paginate(25);
         $total = (float) $this->baseQuery()->sum('amount');
 
-        $suggestedCategories = DB::table('operating_expenses')
+        $suggestedCategoriesQuery = DB::table('operating_expenses')
             ->whereNotNull('category')
-            ->where('category', '!=', '')
+            ->where('category', '!=', '');
+        Tenant::scopeQuery($suggestedCategoriesQuery, 'tenant_id');
+
+        $suggestedCategories = $suggestedCategoriesQuery
             ->select('category')
             ->selectRaw('COUNT(*) as total_rows')
             ->groupBy('category')

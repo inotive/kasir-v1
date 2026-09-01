@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Vouchers;
 
+use App\Models\Tenant;
 use App\Models\VoucherCampaign;
 use App\Support\Finance\NetSales;
 use Carbon\CarbonImmutable;
@@ -74,7 +75,10 @@ class VoucherPerformancePage extends Component
         $sub = DB::table('transactions as t')
             ->join('transaction_items as ti', 't.id', '=', 'ti.transaction_id')
             ->whereBetween('t.created_at', [$fromAt, $toAt])
-            ->whereIn('t.payment_status', NetSales::postedPaymentStatuses())
+            ->whereIn('t.payment_status', NetSales::postedPaymentStatuses());
+        Tenant::scopeQuery($sub, 't.tenant_id');
+
+        $sub = $sub
             ->selectRaw('t.id as tx_id')
             ->selectRaw('t.voucher_campaign_id as voucher_campaign_id')
             ->selectRaw('COALESCE(t.voucher_discount_amount, 0) as voucher_discount_amount')

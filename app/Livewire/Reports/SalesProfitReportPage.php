@@ -3,6 +3,7 @@
 namespace App\Livewire\Reports;
 
 use App\Models\MonthlyRevenueTarget;
+use App\Models\Tenant;
 use App\Support\Finance\NetSales;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -130,6 +131,7 @@ class SalesProfitReportPage extends Component
             ->whereBetween('t.created_at', [$fromAt, $toAt]);
 
         $query->whereIn('t.payment_status', $this->paidStatuses());
+        Tenant::scopeQuery($query, 't.tenant_id');
 
         return $query;
     }
@@ -145,6 +147,7 @@ class SalesProfitReportPage extends Component
             ->whereBetween('t.created_at', [$fromAt, $toAt]);
 
         $query->whereIn('t.payment_status', $this->paidStatuses());
+        Tenant::scopeQuery($query, 't.tenant_id');
 
         return $query;
     }
@@ -161,6 +164,7 @@ class SalesProfitReportPage extends Component
             ->whereBetween('t.created_at', [$fromAt, $toAt]);
 
         $query->whereIn('t.payment_status', $this->paidStatuses());
+        Tenant::scopeQuery($query, 't.tenant_id');
 
         return $query;
     }
@@ -170,7 +174,7 @@ class SalesProfitReportPage extends Component
         $fromAt = $from->startOfDay();
         $toAt = $to->endOfDay();
 
-        return DB::table('inventory_movements as im')
+        $query = DB::table('inventory_movements as im')
             ->where(function ($q) use ($fromAt, $toAt): void {
                 $q->where(function ($w) use ($fromAt, $toAt): void {
                     $w->whereNotNull('im.happened_at')->whereBetween('im.happened_at', [$fromAt, $toAt]);
@@ -178,14 +182,18 @@ class SalesProfitReportPage extends Component
                     $w->whereNull('im.happened_at')->whereBetween('im.created_at', [$fromAt, $toAt]);
                 });
             });
+
+        return Tenant::scopeQuery($query, 'im.tenant_id');
     }
 
     private function operatingExpensesTotal(CarbonImmutable $from, CarbonImmutable $to): float
     {
-        return (float) DB::table('operating_expenses')
+        $query = DB::table('operating_expenses')
             ->whereDate('expense_date', '>=', $from->format('Y-m-d'))
-            ->whereDate('expense_date', '<=', $to->format('Y-m-d'))
-            ->sum('amount');
+            ->whereDate('expense_date', '<=', $to->format('Y-m-d'));
+        Tenant::scopeQuery($query, 'tenant_id');
+
+        return (float) $query->sum('amount');
     }
 
     private function computePeriodMetrics(CarbonImmutable $from, CarbonImmutable $to): array
@@ -506,9 +514,12 @@ class SalesProfitReportPage extends Component
             ->get()
             ->keyBy('day');
 
-        $expenseRows = DB::table('operating_expenses')
+        $expenseRowsQuery = DB::table('operating_expenses')
             ->whereDate('expense_date', '>=', $from->format('Y-m-d'))
-            ->whereDate('expense_date', '<=', $to->format('Y-m-d'))
+            ->whereDate('expense_date', '<=', $to->format('Y-m-d'));
+        Tenant::scopeQuery($expenseRowsQuery, 'tenant_id');
+
+        $expenseRows = $expenseRowsQuery
             ->selectRaw('DATE(expense_date) as day')
             ->selectRaw('COALESCE(SUM(amount), 0) as operating_expenses')
             ->groupByRaw('DATE(expense_date)')

@@ -111,12 +111,6 @@ class NetSales
 
     private static function applyTenantFilter($query)
     {
-        if (Tenant::checkCurrent()) {
-            $query->where('t.tenant_id', Tenant::current()->id);
-        } else {
-            $query->whereNull('t.tenant_id');
-        }
-
-        return $query;
+        return Tenant::scopeQuery($query, 't.tenant_id');
     }
 }

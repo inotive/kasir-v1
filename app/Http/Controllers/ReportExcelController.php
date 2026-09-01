@@ -11,6 +11,7 @@ use App\Exports\Reports\SalesProfitExport;
 use App\Models\Ingredient;
 use App\Models\InventoryMovement;
 use App\Models\Setting;
+use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Support\Finance\NetSales;
@@ -103,11 +104,14 @@ class ReportExcelController extends Controller
         $toAt = $to->endOfDay();
 
         $txQuery = DB::table('transactions as t')->whereBetween('t.created_at', [$fromAt, $toAt])->whereIn('t.payment_status', $this->paidStatuses());
+        Tenant::scopeQuery($txQuery, 't.tenant_id');
+
         $itemsQuery = DB::table('transaction_items as ti')
             ->join('transactions as t', 't.id', '=', 'ti.transaction_id')
             ->leftJoin('product_variants as pv', 'pv.id', '=', 'ti.product_variant_id')
             ->whereBetween('t.created_at', [$fromAt, $toAt])
             ->whereIn('t.payment_status', $this->paidStatuses());
+        Tenant::scopeQuery($itemsQuery, 't.tenant_id');
 
         $cogsQuery = DB::table('inventory_movements as im')
             ->join('transactions as t', 't.id', '=', 'im.reference_id')
@@ -115,6 +119,7 @@ class ReportExcelController extends Controller
             ->whereIn('im.type', ['sale_consumption', 'sale_reversal'])
             ->whereBetween('t.created_at', [$fromAt, $toAt])
             ->whereIn('t.payment_status', $this->paidStatuses());
+        Tenant::scopeQuery($cogsQuery, 't.tenant_id');
 
         $tx = (clone $txQuery)
             ->selectRaw('COUNT(*) as tx_count')
@@ -135,24 +140,28 @@ class ReportExcelController extends Controller
             ->selectRaw('COALESCE(SUM((-im.quantity) * COALESCE(im.unit_cost, 0)), 0) as cogs_inventory')
             ->first();
 
-        $other = DB::table('inventory_movements as im')
+        $otherQuery = DB::table('inventory_movements as im')
             ->where(function ($q) use ($fromAt, $toAt): void {
                 $q->where(function ($w) use ($fromAt, $toAt): void {
                     $w->whereNotNull('im.happened_at')->whereBetween('im.happened_at', [$fromAt, $toAt]);
                 })->orWhere(function ($w) use ($fromAt, $toAt): void {
                     $w->whereNull('im.happened_at')->whereBetween('im.created_at', [$fromAt, $toAt]);
                 });
-            })
+            });
+        Tenant::scopeQuery($otherQuery, 'im.tenant_id');
+
+        $other = $otherQuery
             ->selectRaw("COALESCE(SUM(CASE WHEN im.type = 'waste' THEN (-im.quantity) * COALESCE(im.unit_cost, 0) ELSE 0 END), 0) as waste_cost")
             ->selectRaw("COALESCE(SUM(CASE WHEN im.type = 'usage' THEN (-im.quantity) * COALESCE(im.unit_cost, 0) ELSE 0 END), 0) as usage_cost")
             ->selectRaw("COALESCE(SUM(CASE WHEN im.type = 'adjustment' THEN (-im.quantity) * COALESCE(im.unit_cost, 0) ELSE 0 END), 0) as adjustment_net_cost")
             ->selectRaw("COALESCE(SUM(CASE WHEN im.type = 'opname_adjustment' THEN (-im.quantity) * COALESCE(im.unit_cost, 0) ELSE 0 END), 0) as opname_net_cost")
             ->first();
 
-        $operatingExpenses = (float) DB::table('operating_expenses')
+        $operatingExpensesQuery = DB::table('operating_expenses')
             ->whereDate('expense_date', '>=', $from->format('Y-m-d'))
-            ->whereDate('expense_date', '<=', $to->format('Y-m-d'))
-            ->sum('amount');
+            ->whereDate('expense_date', '<=', $to->format('Y-m-d'));
+        Tenant::scopeQuery($operatingExpensesQuery, 'tenant_id');
+        $operatingExpenses = (float) $operatingExpensesQuery->sum('amount');
 
         $revenue = (float) NetSales::netSalesBetween($fromAt, $toAt);
         $cogsSales = (float) ($cogs->cogs_inventory ?? 0);
@@ -184,14 +193,17 @@ class ReportExcelController extends Controller
             ->mapWithKeys(fn ($r) => [(string) $r->day => (float) $r->cogs_inventory])
             ->all();
 
-        $dailyOtherRows = DB::table('inventory_movements as im')
+        $dailyOtherRowsQuery = DB::table('inventory_movements as im')
             ->where(function ($q) use ($fromAt, $toAt): void {
                 $q->where(function ($w) use ($fromAt, $toAt): void {
                     $w->whereNotNull('im.happened_at')->whereBetween('im.happened_at', [$fromAt, $toAt]);
                 })->orWhere(function ($w) use ($fromAt, $toAt): void {
                     $w->whereNull('im.happened_at')->whereBetween('im.created_at', [$fromAt, $toAt]);
                 });
-            })
+            });
+        Tenant::scopeQuery($dailyOtherRowsQuery, 'im.tenant_id');
+
+        $dailyOtherRows = $dailyOtherRowsQuery
             ->whereIn('im.type', ['waste', 'usage', 'opname_adjustment', 'adjustment'])
             ->selectRaw('DATE(COALESCE(im.happened_at, im.created_at)) as day')
             ->selectRaw('COALESCE(SUM((-im.quantity) * COALESCE(im.unit_cost, 0)), 0) as other_cost')
@@ -316,6 +328,7 @@ class ReportExcelController extends Controller
             ->leftJoin('product_variants as pv', 'pv.id', '=', 'ti.product_variant_id')
             ->leftJoin('members as m', 'm.id', '=', 't.member_id')
             ->whereBetween('t.created_at', [$fromAt, $toAt]);
+        Tenant::scopeQuery($itemsBase, 't.tenant_id');
 
         if ($onlyPaid) {
             $itemsBase->whereIn('t.payment_status', $this->paidStatuses());
@@ -589,7 +602,10 @@ class ReportExcelController extends Controller
             ->leftJoin('inventory_movements as im', function ($join): void {
                 $join->on('im.ingredient_id', '=', 'i.id');
             })
-            ->where('i.is_active', true)
+            ->where('i.is_active', true);
+        Tenant::scopeQuery($agg, 'i.tenant_id');
+
+        $agg = $agg
             ->when($search !== '', function ($q) use ($search): void {
                 $term = '%'.$search.'%';
                 $q->where(function ($w) use ($term): void {

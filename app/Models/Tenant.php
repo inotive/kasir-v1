@@ -30,11 +30,29 @@ class Tenant extends SpatieTenant
     public static function uniqueRule(string $table, string $column): Unique
     {
         return Rule::unique($table, $column)->where(function ($query) {
-            if (static::checkCurrent()) {
-                $query->where('tenant_id', static::current()->id);
-            } else {
-                $query->whereNull('tenant_id');
-            }
+            static::scopeQuery($query, 'tenant_id');
         });
+    }
+
+    /**
+     * Restrict a raw (non-Eloquent) query builder to the current tenant,
+     * matching the behaviour of App\Models\Scopes\TenantScope. Needed
+     * anywhere a report/export builds its query with DB::table() instead
+     * of an Eloquent model, since that bypasses the model's global scope.
+     *
+     * @template TQuery of \Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder
+     *
+     * @param  TQuery  $query
+     * @return TQuery
+     */
+    public static function scopeQuery($query, string $column = 'tenant_id')
+    {
+        if (static::checkCurrent()) {
+            $query->where($column, static::current()->id);
+        } else {
+            $query->whereNull($column);
+        }
+
+        return $query;
     }
 }

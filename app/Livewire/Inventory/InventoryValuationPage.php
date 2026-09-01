@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Inventory;
 
+use App\Models\Tenant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -45,11 +46,14 @@ class InventoryValuationPage extends Component
 
     private function aggregatedQuery()
     {
-        return DB::table('ingredients as i')
+        $query = DB::table('ingredients as i')
             ->leftJoin('inventory_movements as im', function ($join): void {
                 $join->on('im.ingredient_id', '=', 'i.id');
             })
-            ->where('i.is_active', true)
+            ->where('i.is_active', true);
+        Tenant::scopeQuery($query, 'i.tenant_id');
+
+        return $query
             ->when($this->search !== '', function ($q): void {
                 $term = '%'.$this->search.'%';
                 $q->where(function ($w) use ($term): void {

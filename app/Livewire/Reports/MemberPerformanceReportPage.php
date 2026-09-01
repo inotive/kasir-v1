@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reports;
 
+use App\Models\Tenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -124,6 +125,7 @@ class MemberPerformanceReportPage extends Component
             ->leftJoin('members as m', 'm.id', '=', 't.member_id')
             ->leftJoin('member_regions as mr', 'mr.id', '=', 'm.member_region_id')
             ->whereBetween('t.created_at', [$fromAt, $toAt]);
+        Tenant::scopeQuery($query, 't.tenant_id');
 
         if ($this->paymentScope === 'paid') {
             $query->whereIn('t.payment_status', $this->paidStatuses());

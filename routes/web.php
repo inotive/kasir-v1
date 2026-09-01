@@ -61,6 +61,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
+    if (\App\Models\Tenant::checkCurrent()) {
+        return redirect()->route('dashboard');
+    }
+
     if (Auth::check()) {
         return redirect()->route('dashboard');
     }

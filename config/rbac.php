@@ -127,6 +127,7 @@ return [
         'settings.store.edit' => 'Ubah Pengaturan Toko',
         'settings.printers.view' => 'Lihat Pengaturan Printer',
         'settings.printers.edit' => 'Ubah Pengaturan Printer',
+        'settings.printers.devices' => 'Kelola Perangkat Printer (Bluetooth)',
         'settings.system.view' => 'Lihat Pengaturan Sistem',
         'settings.system.edit' => 'Ubah Pengaturan Sistem',
         'settings.points.view' => 'Lihat Pengaturan Poin',

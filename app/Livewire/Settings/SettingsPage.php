@@ -91,7 +91,10 @@ class SettingsPage extends Component
 
     public function mount(): void
     {
-        $this->authorize('settings.view');
+        abort_unless(
+            (auth()->user()?->can('settings.view') ?? false) || (auth()->user()?->can('settings.printers.devices') ?? false),
+            403
+        );
 
         $setting = Setting::current();
 
@@ -184,6 +187,10 @@ class SettingsPage extends Component
     public function canViewSection(string $section): bool
     {
         if ($this->canEditAllSettings()) {
+            return true;
+        }
+
+        if ($section === 'printers' && (auth()->user()?->can('settings.printers.devices') ?? false)) {
             return true;
         }
 

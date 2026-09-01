@@ -5,7 +5,8 @@
         $canViewStore = $canEditAll || (auth()->user()?->can('settings.store.view') ?? false) || (auth()->user()?->can('settings.store.edit') ?? false);
         $canEditStore = $canEditAll || (auth()->user()?->can('settings.store.edit') ?? false);
 
-        $canViewPrinters = $canEditAll || (auth()->user()?->can('settings.printers.view') ?? false) || (auth()->user()?->can('settings.printers.edit') ?? false);
+        $canManagePrinterDevices = $canEditAll || (auth()->user()?->can('settings.printers.edit') ?? false) || (auth()->user()?->can('settings.printers.devices') ?? false);
+        $canViewPrinters = $canManagePrinterDevices || (auth()->user()?->can('settings.printers.view') ?? false);
         $canEditPrinters = $canEditAll || (auth()->user()?->can('settings.printers.edit') ?? false);
 
         $canViewSystem = $canEditAll || (auth()->user()?->can('settings.system.view') ?? false) || (auth()->user()?->can('settings.system.edit') ?? false);
@@ -346,7 +347,7 @@
                             </div>
                         </div>
 
-                        @if ($canEditPrinters)
+                        @if ($canManagePrinterDevices)
                             <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]" x-data="printerSystem">
                             <div class="border-b border-gray-200 px-5 py-4 dark:border-gray-800">
                                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

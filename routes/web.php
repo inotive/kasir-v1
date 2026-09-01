@@ -311,7 +311,7 @@ Route::prefix('admin')->middleware('admin.domain')->group(function () {
         Route::get('/inventory/reports/stock-card/excel', [ReportExcelController::class, 'inventoryStockCard'])->middleware(['permission:inventory.reports.view|inventory.view', 'throttle:10,1'])->name('inventory-reports.stock-card.excel');
         Route::get('/inventory/reports/valuation/excel', [ReportExcelController::class, 'inventoryValuation'])->middleware(['permission:inventory.reports.view|inventory.view', 'throttle:10,1'])->name('inventory-reports.valuation.excel');
 
-        Route::get('/settings', SettingsPage::class)->middleware('permission:settings.view')->name('settings.index');
+        Route::get('/settings', SettingsPage::class)->middleware('permission:settings.view|settings.printers.devices')->name('settings.index');
         Route::get('/users', UsersPage::class)->middleware('permission:users.view')->name('users.index');
 
         Route::get('/roles', RoleIndex::class)->middleware('permission:roles.view')->name('roles.index');

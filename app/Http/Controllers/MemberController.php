@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\MemberVerificationMail;
 use App\Models\DiningTable;
 use App\Models\Member;
+use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -17,8 +18,8 @@ class MemberController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:members,email'],
-            'phone' => ['required', 'string', 'max:30', 'unique:members,phone'],
+            'email' => ['required', 'email', 'max:255', Tenant::uniqueRule('members', 'email')],
+            'phone' => ['required', 'string', 'max:30', Tenant::uniqueRule('members', 'phone')],
             'member_region_id' => ['required', 'integer', 'exists:member_regions,id'],
         ]);
 

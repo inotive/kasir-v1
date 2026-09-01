@@ -6,6 +6,7 @@ use App\Livewire\SelfOrder\Traits\RequiresMemberSession;
 use App\Mail\MemberVerificationMail;
 use App\Models\Member;
 use App\Models\MemberRegion;
+use App\Models\Tenant;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -121,8 +122,8 @@ class MemberProfileEditPage extends Component
         $existingPhone = (string) ($member->phone ?? '');
 
         $this->validate([
-            'email' => ['unique:members,email,'.(int) $member->id],
-            'phone' => ['unique:members,phone,'.(int) $member->id],
+            'email' => [Tenant::uniqueRule('members', 'email')->ignore($member->id)],
+            'phone' => [Tenant::uniqueRule('members', 'phone')->ignore($member->id)],
         ]);
 
         $region = MemberRegion::query()

@@ -4,10 +4,10 @@ namespace App\Livewire\Product;
 
 use App\Models\Addon;
 use App\Models\AddonCategory;
+use App\Models\Tenant;
 use App\Models\TransactionItemAddon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -95,7 +95,7 @@ class AddonsPage extends Component
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('addon_categories', 'name')->whereNull('deleted_at'),
+                Tenant::uniqueRule('addon_categories', 'name')->whereNull('deleted_at'),
             ],
         ]);
 
@@ -134,7 +134,7 @@ class AddonsPage extends Component
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('addon_categories', 'name')
+                Tenant::uniqueRule('addon_categories', 'name')
                     ->whereNull('deleted_at')
                     ->ignore($this->editingCategoryId),
             ],

@@ -5,9 +5,9 @@ namespace App\Livewire\Settings;
 use App\Models\MonthlyRevenueTarget;
 use App\Models\PrinterSource;
 use App\Models\Setting;
+use App\Models\Tenant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -441,7 +441,7 @@ class SettingsPage extends Component
         $this->authorizeSectionEdit('printers');
 
         $validated = $this->validate([
-            'printerName' => ['required', 'string', 'max:255', Rule::unique('printer_sources', 'name')],
+            'printerName' => ['required', 'string', 'max:255', Tenant::uniqueRule('printer_sources', 'name')],
             'printerType' => ['required', 'string', 'max:50'],
         ]);
 
@@ -491,7 +491,7 @@ class SettingsPage extends Component
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('printer_sources', 'name')->ignore($this->editingPrinterSourceId),
+                Tenant::uniqueRule('printer_sources', 'name')->ignore($this->editingPrinterSourceId),
             ],
             'editingPrinterType' => ['required', 'string', 'max:50'],
         ]);

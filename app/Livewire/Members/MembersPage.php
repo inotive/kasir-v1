@@ -4,9 +4,9 @@ namespace App\Livewire\Members;
 
 use App\Models\Member;
 use App\Models\MemberRegion;
+use App\Models\Tenant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -124,8 +124,8 @@ class MembersPage extends Component
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255', Rule::unique('members', 'email')],
-            'phone' => ['nullable', 'string', 'max:50', Rule::unique('members', 'phone')],
+            'email' => ['nullable', 'email', 'max:255', Tenant::uniqueRule('members', 'email')],
+            'phone' => ['nullable', 'string', 'max:50', Tenant::uniqueRule('members', 'phone')],
             'memberRegionId' => ['nullable', 'integer', 'exists:member_regions,id'],
             'points' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -185,13 +185,13 @@ class MembersPage extends Component
                 'nullable',
                 'email',
                 'max:255',
-                Rule::unique('members', 'email')->ignore($this->editingMemberId),
+                Tenant::uniqueRule('members', 'email')->ignore($this->editingMemberId),
             ],
             'editingPhone' => [
                 'nullable',
                 'string',
                 'max:50',
-                Rule::unique('members', 'phone')->ignore($this->editingMemberId),
+                Tenant::uniqueRule('members', 'phone')->ignore($this->editingMemberId),
             ],
             'editingMemberRegionId' => ['nullable', 'integer', 'exists:member_regions,id'],
             'editingPoints' => ['nullable', 'integer', 'min:0'],

@@ -3,6 +3,7 @@
 namespace App\Livewire\Users;
 
 use App\Helpers\RbacLabelHelper;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -102,7 +103,7 @@ class UsersPage extends Component
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'email' => ['required', 'email', 'max:255', Tenant::uniqueRule('users', 'email')],
             'role' => ['required', 'string', Rule::in($roles)],
             'isActive' => ['boolean'],
             'password' => ['required', 'string', 'min:8', 'max:255', 'same:passwordConfirmation'],
@@ -193,7 +194,7 @@ class UsersPage extends Component
 
         $validated = $this->validate([
             'editingName' => ['required', 'string', 'max:255'],
-            'editingEmail' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->editingUserId)],
+            'editingEmail' => ['required', 'email', 'max:255', Tenant::uniqueRule('users', 'email')->ignore($this->editingUserId)],
             'editingRole' => ['required', 'string', Rule::in($roles)],
             'editingIsActive' => ['boolean'],
             'editingPassword' => ['nullable', 'string', 'min:8', 'max:255', 'same:editingPasswordConfirmation'],

@@ -57,7 +57,7 @@ class TenantFormPage extends Component
             'slug' => ['required', 'string', 'max:255', 'alpha_dash', $this->isEditing ? 'unique:tenants,slug,'.$this->tenant->id : 'unique:tenants,slug'],
             'businessName' => ['nullable', 'string', 'max:255'],
             'ownerName' => [$this->isEditing ? 'nullable' : 'required', 'string', 'max:255'],
-            'ownerEmail' => [$this->isEditing ? 'nullable' : 'required', 'email', 'max:255', 'unique:users,email'],
+            'ownerEmail' => [$this->isEditing ? 'nullable' : 'required', 'email', 'max:255'],
             'ownerPassword' => [$this->isEditing ? 'nullable' : 'required', 'string', 'min:8', 'max:255', 'same:ownerPasswordConfirmation'],
             'ownerPasswordConfirmation' => [$this->isEditing ? 'nullable' : 'required', 'string'],
         ]);

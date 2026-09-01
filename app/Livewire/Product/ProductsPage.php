@@ -4,11 +4,11 @@ namespace App\Livewire\Product;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Tenant;
 use App\Models\TransactionItem;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -115,7 +115,7 @@ class ProductsPage extends Component
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('categories', 'name')->whereNull('deleted_at'),
+                Tenant::uniqueRule('categories', 'name')->whereNull('deleted_at'),
             ],
         ]);
 
@@ -174,7 +174,7 @@ class ProductsPage extends Component
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('categories', 'name')
+                Tenant::uniqueRule('categories', 'name')
                     ->whereNull('deleted_at')
                     ->ignore($this->editingCategoryId),
             ],

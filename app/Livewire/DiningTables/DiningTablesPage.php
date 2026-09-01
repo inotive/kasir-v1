@@ -3,9 +3,9 @@
 namespace App\Livewire\DiningTables;
 
 use App\Models\DiningTable;
+use App\Models\Tenant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -57,7 +57,7 @@ class DiningTablesPage extends Component
         $this->authorize('dining_tables.edit');
 
         $validated = $this->validate([
-            'tableNumber' => ['required', 'string', 'max:50', Rule::unique('dining_tables', 'table_number')],
+            'tableNumber' => ['required', 'string', 'max:50', Tenant::uniqueRule('dining_tables', 'table_number')],
         ]);
 
         DiningTable::query()->create([
@@ -101,7 +101,7 @@ class DiningTablesPage extends Component
                 'required',
                 'string',
                 'max:50',
-                Rule::unique('dining_tables', 'table_number')->ignore($this->editingTableId),
+                Tenant::uniqueRule('dining_tables', 'table_number')->ignore($this->editingTableId),
             ],
         ]);
 

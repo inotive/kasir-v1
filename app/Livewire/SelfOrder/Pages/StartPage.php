@@ -7,6 +7,7 @@ use App\Models\DiningTable;
 use App\Models\Member;
 use App\Models\MemberRegion;
 use App\Models\Setting;
+use App\Models\Tenant;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -186,8 +187,8 @@ class StartPage extends Component
     {
         $validated = $this->validate([
             'register_name' => ['required', 'string', 'max:255'],
-            'register_email' => ['required', 'email', 'max:255', 'unique:members,email'],
-            'register_phone' => ['required', 'string', 'max:30', 'unique:members,phone'],
+            'register_email' => ['required', 'email', 'max:255', Tenant::uniqueRule('members', 'email')],
+            'register_phone' => ['required', 'string', 'max:30', Tenant::uniqueRule('members', 'phone')],
             'register_province' => ['required', 'string', 'max:255'],
             'register_regency' => ['required', 'string', 'max:255'],
             'register_district' => ['required', 'string', 'max:255'],

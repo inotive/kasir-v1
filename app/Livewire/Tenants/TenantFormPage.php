@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Tenants;
 
+use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
@@ -30,6 +31,8 @@ class TenantFormPage extends Component
 
     public bool $isEditing = false;
 
+    public ?int $ownerUserId = null;
+
     public function mount(?Tenant $tenant = null): void
     {
         $this->authorize('dashboard.access');
@@ -45,6 +48,9 @@ class TenantFormPage extends Component
             $this->name = $tenant->name;
             $this->slug = $tenant->slug;
             $this->businessName = $tenant->business_name ?? '';
+
+            $owner = $tenant->users()->withoutGlobalScope(TenantScope::class)->where('role', 'owner')->first();
+            $this->ownerUserId = $owner?->id;
         }
     }
 
@@ -68,6 +74,15 @@ class TenantFormPage extends Component
                 'slug' => $validated['slug'],
                 'business_name' => $validated['businessName'],
             ]);
+
+            if ($this->ownerUserId && filled($validated['ownerPassword'])) {
+                $owner = User::query()->withoutGlobalScope(TenantScope::class)->find($this->ownerUserId);
+
+                if ($owner) {
+                    $owner->password = $validated['ownerPassword'];
+                    $owner->save();
+                }
+            }
 
             session()->flash('toast', 'Tenant berhasil diperbarui.');
         } else {

@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Tenant Public Domain
+    |--------------------------------------------------------------------------
+    |
+    | The public-facing domain suffix used when displaying a tenant's
+    | subdomain in the admin UI (e.g. "{slug}.hippikasir.com").
+    |
+    */
+
+    'tenant_domain' => env('TENANT_DOMAIN', 'hippikasir.com'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

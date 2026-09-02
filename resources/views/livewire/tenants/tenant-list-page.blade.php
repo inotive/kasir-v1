@@ -19,7 +19,7 @@
                 <thead>
                     <tr class="border-b border-gray-200 dark:border-gray-800">
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Nama</th>
-                        <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Slug</th>
+                        <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Domain</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Bisnis</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Pengguna
                         </th>
@@ -33,7 +33,7 @@
                         <tr class="hover:bg-gray-50 dark:hover:bg-white/[0.03]">
                             <td class="px-5 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
                                 {{ $t->name }}</td>
-                            <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $t->slug }}</td>
+                            <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $t->slug }}.{{ config('app.tenant_domain') }}</td>
                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
                                 {{ $t->business_name ?? '-' }}</td>
                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $t->users_count }}</td>

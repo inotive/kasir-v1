@@ -21,6 +21,7 @@
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Nama</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Domain</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Bisnis</th>
+                        <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Email Owner</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Pengguna
                         </th>
                         <th class="px-5 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
@@ -36,6 +37,8 @@
                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $t->slug }}.{{ config('app.tenant_domain') }}</td>
                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
                                 {{ $t->business_name ?? '-' }}</td>
+                            <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                {{ $t->users->first()?->email ?? '-' }}</td>
                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $t->users_count }}</td>
                             <td class="px-5 py-4 text-center">
                                 <button
@@ -56,7 +59,7 @@
                             </td>
                         </tr>
                     @empty
-                        <x-common.empty-table-row colspan="7" message="Belum ada tenant." />
+                        <x-common.empty-table-row colspan="8" message="Belum ada tenant." />
                     @endforelse
                 </tbody>
             </table>

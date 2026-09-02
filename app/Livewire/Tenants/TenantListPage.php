@@ -41,6 +41,7 @@ class TenantListPage extends Component
     {
         $tenants = Tenant::query()
             ->withCount(['users' => fn ($q) => $q->withoutGlobalScope(TenantScope::class)])
+            ->with(['users' => fn ($q) => $q->withoutGlobalScope(TenantScope::class)->where('role', 'owner')])
             ->orderBy('name')
             ->paginate(15);
 

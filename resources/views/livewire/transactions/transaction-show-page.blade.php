@@ -36,7 +36,13 @@
                 <h2 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ $transaction->code }}</h2>
             </div>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                {{ optional($transaction->created_at)->format('d M Y, H:i') }} · {{ $paymentMethodLabel }} · {{ $paymentStatusLabel }}
+                @if ($transaction->created_at)
+                    <span x-data="{ d: new Date('{{ $transaction->created_at->toISOString() }}') }"
+                        x-text="d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })"></span>
+                @else
+                    -
+                @endif
+                · {{ $paymentMethodLabel }} · {{ $paymentStatusLabel }}
             </p>
         </div>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -398,7 +404,14 @@
                                 {{ $event->actor?->name ?? 'System' }}
                             </p>
                         </div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ optional($event->created_at)->format('d M Y, H:i') }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            @if ($event->created_at)
+                                <span x-data="{ d: new Date('{{ $event->created_at->toISOString() }}') }"
+                                    x-text="d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })"></span>
+                            @else
+                                -
+                            @endif
+                        </p>
                     </div>
 
                     @php

@@ -95,8 +95,16 @@
                         <tr>
                             <td class="px-5 py-4">
                                 <div class="space-y-1">
-                                    <p class="text-sm font-medium text-gray-800 dark:text-white/90">{{ optional($transaction->created_at)->format('d M Y') }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ optional($transaction->created_at)->format('H:i') }}</p>
+                                    @if ($transaction->created_at)
+                                        <p class="text-sm font-medium text-gray-800 dark:text-white/90"
+                                            x-data="{ d: new Date('{{ $transaction->created_at->toISOString() }}') }"
+                                            x-text="d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })"></p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400"
+                                            x-data="{ d: new Date('{{ $transaction->created_at->toISOString() }}') }"
+                                            x-text="d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })"></p>
+                                    @else
+                                        <p class="text-sm font-medium text-gray-800 dark:text-white/90">-</p>
+                                    @endif
                                 </div>
                             </td>
                             <td class="px-5 py-4">

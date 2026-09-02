@@ -80,7 +80,7 @@
                         </tr>
                         <tr>
                             <td style="padding: 8px 0; color: {{ $muted }}; font-size: 13px;">Tanggal</td>
-                            <td style="padding: 8px 0; text-align: right; color: {{ $ink }}; font-size: 13px;">{{ $paidAt?->format('d M Y, H:i') }}</td>
+                            <td style="padding: 8px 0; text-align: right; color: {{ $ink }}; font-size: 13px;">{{ $paidAt?->copy()->timezone('Asia/Makassar')->format('d M Y, H:i') }}</td>
                         </tr>
                         <tr>
                             <td style="padding: 8px 0; color: {{ $muted }}; font-size: 13px;">Metode Pembayaran</td>

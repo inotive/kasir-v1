@@ -13,7 +13,12 @@
                     <div class="min-w-0">
                         <div class="text-sm font-bold text-gray-900">{{ (string) $transaction->code }}</div>
                         <div class="text-xs text-gray-500 mt-1">
-                            {{ optional($transaction->created_at)->format('d/m/Y H:i') }}
+                            @if ($transaction->created_at)
+                                <span x-data="{ d: new Date('{{ $transaction->created_at->toISOString() }}') }"
+                                    x-text="d.toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })"></span>
+                            @else
+                                -
+                            @endif
                             @if ($transaction->diningTable)
                                 <span class="mx-1">•</span>
                                 Meja #{{ (string) $transaction->diningTable->table_number }}

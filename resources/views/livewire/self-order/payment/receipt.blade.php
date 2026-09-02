@@ -65,7 +65,9 @@
                     </div>
                     <div class="text-right">
                         <p class="text-gray-500 receipt-muted">Tanggal</p>
-                        <p class="font-semibold text-gray-900">{{ $transaction->updated_at->format('d/m/Y H:i') }}</p>
+                        <p class="font-semibold text-gray-900"
+                            x-data="{ d: new Date('{{ $transaction->updated_at->toISOString() }}') }"
+                            x-text="d.toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })"></p>
                     </div>
                     <div>
                         <p class="text-gray-500 receipt-muted">Nama Pelanggan</p>

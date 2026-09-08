@@ -48,7 +48,15 @@ class PosPage extends Component
 
     public ?int $variantProductId = null;
 
+    public ?string $variantProductName = null;
+
     public array $variantOptions = [];
+
+    public ?int $selectedModalVariantId = null;
+
+    public int $modalQuantity = 1;
+
+    public array $addonGroups = [];
 
     public bool $complexPackageModalOpen = false;
 
@@ -468,7 +476,7 @@ class PosPage extends Component
     public function openVariantModal(int $productId): void
     {
         $product = Product::query()
-            ->with('addons')
+            ->with('addons.addonCategory')
             ->whereKey($productId)
             ->first();
         if (! $product) {
@@ -480,28 +488,8 @@ class PosPage extends Component
             ->orderBy('name')
             ->get(['id', 'name', 'price', 'price_afterdiscount', 'percent']);
 
-        if ($variants->count() <= 1) {
-            $variant = $variants->first();
-            if ($variant) {
-                if ($product->addons->isNotEmpty()) {
-                    $this->pendingVariantForAddon = [
-                        'product_id' => (int) $product->id,
-                        'variant_id' => (int) $variant->id,
-                        'product_name' => (string) $product->name,
-                        'variant_name' => ItemNameFormatter::displayVariantName((int) $product->id, (string) $variant->name),
-                        'price' => $this->finalVariantPrice($variant),
-                        'original_price' => (int) round((float) $variant->price),
-                        'percent' => $variant->percent === null ? null : (int) $variant->percent,
-                    ];
-                    $this->addonSearch = '';
-                    $this->addonPage = 1;
-                    $this->selectedAddonsWithQty = [];
-                    $this->searchAddons();
-                    $this->variantModalOpen = true;
-                } else {
-                    $this->addVariantToCart((int) $variant->id);
-                }
-            }
+        if ($variants->isEmpty()) {
+            $this->dispatch('toast', type: 'error', message: 'Produk belum memiliki varian harga.');
 
             return;
         }
@@ -519,8 +507,177 @@ class PosPage extends Component
             ];
         })->all();
 
-        $this->variantProductId = (int) $productId;
+        $this->variantProductId = (int) $product->id;
+        $this->variantProductName = (string) $product->name;
+        $this->selectedModalVariantId = (int) $this->variantOptions[0]['id'];
+        $this->modalQuantity = 1;
+        $this->selectedAddonsWithQty = [];
+        $this->pendingVariantForAddon = null;
+
+        $addons = Addon::query()
+            ->where('is_available', true)
+            ->whereHas('products', fn ($q) => $q->where('product_id', $product->id))
+            ->with('addonCategory')
+            ->orderBy('name')
+            ->get();
+
+        $this->addonGroups = $addons
+            ->groupBy(fn ($a) => $a->addonCategory?->name ?? 'Lainnya')
+            ->map(fn ($items, $category) => [
+                'category' => (string) $category,
+                'items' => $items->map(fn ($a) => [
+                    'id' => (int) $a->id,
+                    'name' => (string) $a->name,
+                    'price' => (int) round((float) $a->price),
+                ])->values()->all(),
+            ])
+            ->values()
+            ->all();
+
+        $this->addonSearch = '';
+        $this->addonSearchResults = [];
+        $this->addonPage = 1;
+        $this->addonHasMore = false;
         $this->variantModalOpen = true;
+    }
+
+    public function selectModalVariant(int $variantId): void
+    {
+        foreach ($this->variantOptions as $v) {
+            if ((int) ($v['id'] ?? 0) === $variantId) {
+                $this->selectedModalVariantId = $variantId;
+
+                return;
+            }
+        }
+    }
+
+    public function incrementModalQuantity(): void
+    {
+        $this->modalQuantity = max(1, (int) $this->modalQuantity + 1);
+    }
+
+    public function decrementModalQuantity(): void
+    {
+        $this->modalQuantity = max(1, (int) $this->modalQuantity - 1);
+    }
+
+    public function toggleModalAddon(int $addonId, string $name, int $price): void
+    {
+        foreach ($this->selectedAddonsWithQty as $idx => $sa) {
+            if ((int) $sa['id'] === $addonId) {
+                unset($this->selectedAddonsWithQty[$idx]);
+                $this->selectedAddonsWithQty = array_values($this->selectedAddonsWithQty);
+
+                return;
+            }
+        }
+
+        $this->selectedAddonsWithQty[] = [
+            'id' => $addonId,
+            'name' => $name,
+            'price' => $price,
+            'quantity' => 1,
+        ];
+    }
+
+    public function combinedModalTotal(): int
+    {
+        $total = 0;
+        $selectedId = (int) ($this->selectedModalVariantId ?? 0);
+        foreach ($this->variantOptions as $v) {
+            if ((int) ($v['id'] ?? 0) === $selectedId) {
+                $total += (int) ($v['final_price'] ?? 0) * max(1, (int) $this->modalQuantity);
+                break;
+            }
+        }
+        foreach ($this->selectedAddonsWithQty as $sa) {
+            $total += (int) ($sa['price'] ?? 0);
+        }
+
+        return $total;
+    }
+
+    public function confirmCombinedToCart(): void
+    {
+        if ($this->cartLocked) {
+            $this->dispatch('toast', type: 'error', message: 'Pesanan yang dimuat tidak dapat diubah.');
+
+            return;
+        }
+
+        $variantId = (int) ($this->selectedModalVariantId ?? 0);
+        if ($variantId <= 0) {
+            $this->dispatch('toast', type: 'error', message: 'Pilih varian terlebih dahulu.');
+
+            return;
+        }
+
+        $variant = ProductVariant::query()->with('product')->find($variantId);
+        if (! $variant || ! $variant->product) {
+            return;
+        }
+
+        if ((bool) $variant->product->is_package && (string) ($variant->product->package_type ?? 'simple') === 'complex') {
+            $this->variantModalOpen = false;
+            $this->openComplexPackageModal((int) $variant->id);
+
+            return;
+        }
+
+        $qty = max(1, (int) $this->modalQuantity);
+
+        $selectedAddons = [];
+        foreach ($this->selectedAddonsWithQty as $sa) {
+            $selectedAddons[] = [
+                'id' => (int) $sa['id'],
+                'name' => (string) $sa['name'],
+                'price' => (int) $sa['price'],
+                'quantity' => 1,
+            ];
+        }
+        $newAddonIds = array_column($selectedAddons, 'id');
+        sort($newAddonIds);
+
+        $finalPrice = $this->finalVariantPrice($variant);
+        $base = (int) round((float) $variant->price);
+
+        $existingIndex = null;
+        foreach ($this->cartItems as $i => $item) {
+            if ((int) ($item['variant_id'] ?? 0) !== $variantId) {
+                continue;
+            }
+            $existingAddonIds = array_column($item['addons'] ?? [], 'id');
+            sort($existingAddonIds);
+            if ($existingAddonIds === $newAddonIds) {
+                $existingIndex = $i;
+                break;
+            }
+        }
+
+        if ($existingIndex !== null) {
+            $this->cartItems[$existingIndex]['quantity'] = (int) ($this->cartItems[$existingIndex]['quantity'] ?? 0) + $qty;
+            $this->recalculateTotals();
+            $this->closeVariantModal();
+
+            return;
+        }
+
+        $this->cartItems[] = [
+            'product_id' => (int) $variant->product->id,
+            'variant_id' => $variantId,
+            'name' => (string) $variant->product->name,
+            'variant_name' => ItemNameFormatter::displayVariantName((int) $variant->product->id, (string) $variant->name),
+            'price' => $finalPrice,
+            'original_price' => $base,
+            'percent' => $variant->percent === null ? null : (int) $variant->percent,
+            'quantity' => $qty,
+            'note' => null,
+            'addons' => $selectedAddons,
+        ];
+
+        $this->recalculateTotals();
+        $this->closeVariantModal();
     }
 
     public function openCombinedModal(int $productId): void
@@ -549,28 +706,7 @@ class PosPage extends Component
             return;
         }
 
-        if ($variantsCount > 1) {
-            $this->openVariantModal($productId);
-
-            return;
-        }
-
-        $product->loadMissing('addons');
-
-        if ($product->addons->isNotEmpty()) {
-            $this->openVariantModal($productId);
-
-            return;
-        }
-
-        $variant = ProductVariant::query()
-            ->where('product_id', $productId)
-            ->orderBy('id')
-            ->first();
-
-        if ($variant) {
-            $this->addVariantToCart((int) $variant->id);
-        }
+        $this->openVariantModal($productId);
     }
 
     public function addVariantToCart(int $variantId): void
@@ -746,6 +882,10 @@ class PosPage extends Component
     public function closeVariantModal(): void
     {
         $this->variantModalOpen = false;
+        $this->variantProductName = null;
+        $this->selectedModalVariantId = null;
+        $this->modalQuantity = 1;
+        $this->addonGroups = [];
         $this->pendingVariantForAddon = null;
         $this->addonSearch = '';
         $this->addonSearchResults = [];

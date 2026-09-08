@@ -902,7 +902,6 @@
             $paymentMethods = [
                 ['id' => 'cash', 'name' => 'Tunai'],
                 ['id' => 'qris', 'name' => 'QRIS'],
-                ['id' => 'transfer_bank', 'name' => 'Transfer Bank'],
                 ['id' => 'gofood', 'name' => 'GoFood'],
                 ['id' => 'grab_food', 'name' => 'GrabFood'],
                 ['id' => 'shopee_food', 'name' => 'ShopeeFood'],

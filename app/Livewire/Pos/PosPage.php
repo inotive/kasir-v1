@@ -59,6 +59,10 @@ class PosPage extends Component
 
     public array $addonGroups = [];
 
+    public bool $isSimplePackage = false;
+
+    public array $simplePackageComponentAddons = [];
+
     public bool $complexPackageModalOpen = false;
 
     public ?int $complexPackageParentVariantId = null;
@@ -514,26 +518,36 @@ class PosPage extends Component
         $this->modalQuantity = 1;
         $this->selectedAddonsWithQty = [];
         $this->pendingVariantForAddon = null;
+        $this->isSimplePackage = (bool) $product->is_package && (string) ($product->package_type ?? 'simple') === 'simple';
+        $this->simplePackageComponentAddons = [];
 
-        $addons = Addon::query()
-            ->where('is_available', true)
-            ->whereHas('products', fn ($q) => $q->where('product_id', $product->id))
-            ->with('addonCategory')
-            ->orderBy('name')
-            ->get();
+        if ($this->isSimplePackage) {
+            $selectedVariant = $variants->first();
+            if ($selectedVariant) {
+                $selectedVariant->setRelation('product', $product);
+                $this->populateSimplePackageComponentAddons($selectedVariant);
+            }
+        } else {
+            $addons = Addon::query()
+                ->where('is_available', true)
+                ->whereHas('products', fn ($q) => $q->where('product_id', $product->id))
+                ->with('addonCategory')
+                ->orderBy('name')
+                ->get();
 
-        $this->addonGroups = $addons
-            ->groupBy(fn ($a) => $a->addonCategory?->name ?? 'Lainnya')
-            ->map(fn ($items, $category) => [
-                'category' => (string) $category,
-                'items' => $items->map(fn ($a) => [
-                    'id' => (int) $a->id,
-                    'name' => (string) $a->name,
-                    'price' => (int) round((float) $a->price),
-                ])->values()->all(),
-            ])
-            ->values()
-            ->all();
+            $this->addonGroups = $addons
+                ->groupBy(fn ($a) => $a->addonCategory?->name ?? 'Lainnya')
+                ->map(fn ($items, $category) => [
+                    'category' => (string) $category,
+                    'items' => $items->map(fn ($a) => [
+                        'id' => (int) $a->id,
+                        'name' => (string) $a->name,
+                        'price' => (int) round((float) $a->price),
+                    ])->values()->all(),
+                ])
+                ->values()
+                ->all();
+        }
 
         $this->addonSearch = '';
         $this->addonSearchResults = [];
@@ -595,6 +609,11 @@ class PosPage extends Component
         foreach ($this->selectedAddonsWithQty as $sa) {
             $total += (int) ($sa['price'] ?? 0);
         }
+        foreach ($this->simplePackageComponentAddons as $comp) {
+            foreach ($comp['selected_addons'] ?? [] as $addon) {
+                $total += (int) ($addon['price'] ?? 0);
+            }
+        }
 
         return $total;
     }
@@ -627,6 +646,7 @@ class PosPage extends Component
         }
 
         $qty = max(1, (int) $this->modalQuantity);
+        $isSimplePackage = (bool) $variant->product->is_package && (string) ($variant->product->package_type ?? 'simple') === 'simple';
 
         $selectedAddons = [];
         foreach ($this->selectedAddonsWithQty as $sa) {
@@ -637,6 +657,30 @@ class PosPage extends Component
                 'quantity' => 1,
             ];
         }
+
+        $packageComponents = [];
+        if ($isSimplePackage) {
+            foreach ($this->simplePackageComponentAddons as $comp) {
+                $childAddons = [];
+                foreach ($comp['selected_addons'] ?? [] as $sa) {
+                    $childAddons[] = [
+                        'id' => (int) $sa['id'],
+                        'name' => (string) $sa['name'],
+                        'price' => (int) $sa['price'],
+                        'quantity' => 1,
+                    ];
+                }
+                $packageComponents[] = [
+                    'product_id' => (int) $comp['product_id'],
+                    'variant_id' => (int) $comp['variant_id'],
+                    'quantity' => (int) $comp['base_quantity'],
+                    'product_name' => (string) $comp['product_name'],
+                    'variant_name' => (string) ($comp['variant_name'] ?? ''),
+                    'addons' => $childAddons,
+                ];
+            }
+        }
+
         $newAddonIds = array_column($selectedAddons, 'id');
         sort($newAddonIds);
 
@@ -644,15 +688,17 @@ class PosPage extends Component
         $base = (int) round((float) $variant->price);
 
         $existingIndex = null;
-        foreach ($this->cartItems as $i => $item) {
-            if ((int) ($item['variant_id'] ?? 0) !== $variantId) {
-                continue;
-            }
-            $existingAddonIds = array_column($item['addons'] ?? [], 'id');
-            sort($existingAddonIds);
-            if ($existingAddonIds === $newAddonIds) {
-                $existingIndex = $i;
-                break;
+        if (! $isSimplePackage) {
+            foreach ($this->cartItems as $i => $item) {
+                if ((int) ($item['variant_id'] ?? 0) !== $variantId) {
+                    continue;
+                }
+                $existingAddonIds = array_column($item['addons'] ?? [], 'id');
+                sort($existingAddonIds);
+                if ($existingAddonIds === $newAddonIds) {
+                    $existingIndex = $i;
+                    break;
+                }
             }
         }
 
@@ -664,7 +710,7 @@ class PosPage extends Component
             return;
         }
 
-        $this->cartItems[] = [
+        $payload = [
             'product_id' => (int) $variant->product->id,
             'variant_id' => $variantId,
             'name' => (string) $variant->product->name,
@@ -674,8 +720,18 @@ class PosPage extends Component
             'percent' => $variant->percent === null ? null : (int) $variant->percent,
             'quantity' => $qty,
             'note' => null,
-            'addons' => $selectedAddons,
         ];
+
+        if ($isSimplePackage) {
+            $payload['is_package'] = true;
+            $payload['package_type'] = 'simple';
+            $payload['package_components'] = $packageComponents;
+            $payload['addons'] = [];
+        } else {
+            $payload['addons'] = $selectedAddons;
+        }
+
+        $this->cartItems[] = $payload;
 
         $this->recalculateTotals();
         $this->closeVariantModal();
@@ -891,6 +947,153 @@ class PosPage extends Component
         return Storage::disk('public')->url($path);
     }
 
+    private function populateSimplePackageComponentAddons(ProductVariant $parentVariant): void
+    {
+        $product = $parentVariant->product;
+        if (! $product || ! (bool) $product->is_package) {
+            return;
+        }
+
+        $product->loadMissing('packageItems.componentVariant.product.addons.addonCategory');
+
+        $this->simplePackageComponentAddons = $product->packageItems
+            ->values()
+            ->map(function ($item, int $idx) {
+                $componentVariant = $item->componentVariant;
+                $componentProduct = $componentVariant?->product;
+                if (! $componentProduct || ! $componentVariant) {
+                    return null;
+                }
+
+                $addons = $componentProduct->addons
+                    ->sortBy('name')
+                    ->values()
+                    ->map(fn ($a) => [
+                        'id' => (int) $a->id,
+                        'name' => (string) $a->name,
+                        'price' => (int) round((float) $a->price),
+                    ])
+                    ->all();
+
+                $addonGroups = $componentProduct->addons
+                    ->groupBy(fn ($a) => $a->addonCategory?->name ?? 'Lainnya')
+                    ->map(fn ($items, $category) => [
+                        'category' => (string) $category,
+                        'items' => $items->sortBy('name')->values()->map(fn ($a) => [
+                            'id' => (int) $a->id,
+                            'name' => (string) $a->name,
+                            'price' => (int) round((float) $a->price),
+                        ])->all(),
+                    ])
+                    ->values()
+                    ->all();
+
+                return [
+                    'index' => $idx,
+                    'product_id' => (int) $componentProduct->id,
+                    'product_name' => (string) $componentProduct->name,
+                    'variant_id' => (int) $componentVariant->id,
+                    'variant_name' => \App\Support\Products\ItemNameFormatter::displayVariantName(
+                        (int) $componentProduct->id,
+                        (string) $componentVariant->name
+                    ),
+                    'base_quantity' => (int) $item->quantity,
+                    'addon_groups' => $addonGroups,
+                    'selected_addons' => [],
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    public function toggleSimplePackageComponentAddon(int $componentIndex, int $addonId, string $name, int $price): void
+    {
+        if (! isset($this->simplePackageComponentAddons[$componentIndex])) {
+            return;
+        }
+
+        $addons = &$this->simplePackageComponentAddons[$componentIndex]['selected_addons'];
+
+        foreach ($addons as $idx => $sa) {
+            if ((int) $sa['id'] === $addonId) {
+                unset($addons[$idx]);
+                $this->simplePackageComponentAddons[$componentIndex]['selected_addons'] = array_values($addons);
+
+                return;
+            }
+        }
+
+        $addons[] = [
+            'id' => $addonId,
+            'name' => $name,
+            'price' => $price,
+            'quantity' => 1,
+        ];
+        $this->simplePackageComponentAddons[$componentIndex]['selected_addons'] = array_values($addons);
+    }
+
+    public function toggleComplexComponentAddon(string $allocKey, int $addonId, string $name, int $price): void
+    {
+        foreach ($this->complexPackageComponents as $ci => $comp) {
+            if (! is_array($comp)) {
+                continue;
+            }
+            foreach ($comp['allocations'] ?? [] as $ai => $alloc) {
+                if (($alloc['key'] ?? '') !== $allocKey) {
+                    continue;
+                }
+                $addons = &$this->complexPackageComponents[$ci]['allocations'][$ai]['addons'];
+                if (! is_array($addons)) {
+                    $addons = [];
+                }
+
+                foreach ($addons as $idx => $sa) {
+                    if ((int) $sa['id'] === $addonId) {
+                        unset($addons[$idx]);
+                        $this->complexPackageComponents[$ci]['allocations'][$ai]['addons'] = array_values($addons);
+
+                        return;
+                    }
+                }
+
+                $addons[] = [
+                    'id' => $addonId,
+                    'name' => $name,
+                    'price' => $price,
+                    'quantity' => 1,
+                ];
+                $this->complexPackageComponents[$ci]['allocations'][$ai]['addons'] = array_values($addons);
+
+                return;
+            }
+        }
+    }
+
+    public function allComponentAddonsGrandTotal(): int
+    {
+        $total = 0;
+
+        foreach ($this->simplePackageComponentAddons as $comp) {
+            foreach ($comp['selected_addons'] ?? [] as $addon) {
+                $total += (int) ($addon['price'] ?? 0);
+            }
+        }
+
+        foreach ($this->complexPackageComponents as $comp) {
+            if (! is_array($comp)) {
+                continue;
+            }
+            foreach ($comp['allocations'] ?? [] as $alloc) {
+                foreach ($alloc['addons'] ?? [] as $addon) {
+                    $total += (int) ($addon['price'] ?? 0);
+                }
+            }
+        }
+
+        return $total;
+    }
+
     public function closeVariantModal(): void
     {
         $this->variantModalOpen = false;
@@ -902,6 +1105,8 @@ class PosPage extends Component
         $this->addonSearch = '';
         $this->addonSearchResults = [];
         $this->selectedAddonsWithQty = [];
+        $this->isSimplePackage = false;
+        $this->simplePackageComponentAddons = [];
     }
 
     public function confirmAddonsToCart(): void
@@ -1066,14 +1271,31 @@ class PosPage extends Component
             ->get(['id', 'product_id', 'name'])
             ->groupBy('product_id');
 
-        $this->complexPackageParentVariantId = (int) $parentVariant->id;
-        $existingByProductId = collect((array) ($cartItem['package_components'] ?? []))
-            ->filter(fn ($row) => is_array($row))
+        $componentProducts = Product::query()
+            ->with(['addons.addonCategory'])
+            ->whereIn('id', $componentProductIds)
+            ->get()
+            ->keyBy('id');
+
+        $existingComponents = collect((array) ($cartItem['package_components'] ?? []))
+            ->filter(fn ($row) => is_array($row));
+
+        $existingByProductId = $existingComponents
             ->groupBy(fn (array $row) => (int) ($row['product_id'] ?? 0));
+
+        $existingAddonsByVariantKey = [];
+        foreach ($existingComponents as $row) {
+            $vid = (int) ($row['variant_id'] ?? 0);
+            $note = trim((string) ($row['note'] ?? ''));
+            $k = $vid . '|' . $note;
+            $existingAddonsByVariantKey[$k] = $row['addons'] ?? [];
+        }
+
+        $this->complexPackageParentVariantId = (int) $parentVariant->id;
 
         $this->complexPackageComponents = $product->complexPackageItems
             ->values()
-            ->map(function ($item) use ($variantRows, $existingByProductId) {
+            ->map(function ($item) use ($variantRows, $existingByProductId, $existingAddonsByVariantKey, $componentProducts) {
                 $componentProductId = (int) $item->component_product_id;
                 $baseQty = (int) $item->quantity;
                 $isSplitable = (bool) ($item->is_splitable ?? false);
@@ -1090,12 +1312,19 @@ class PosPage extends Component
                     ->filter(fn (array $row) => (int) ($row['quantity'] ?? 0) > 0)
                     ->values();
 
-                $allocations = $existing->map(fn (array $row) => [
-                    'key' => (string) Str::uuid(),
-                    'quantity' => (int) ($row['quantity'] ?? 0),
-                    'variant_id' => (int) ($row['variant_id'] ?? 0),
-                    'note' => array_key_exists('note', $row) ? ($row['note'] === '' ? null : (string) $row['note']) : null,
-                ])->all();
+                $allocations = $existing->map(function (array $row) use ($existingAddonsByVariantKey) {
+                    $vid = (int) ($row['variant_id'] ?? 0);
+                    $note = trim((string) ($row['note'] ?? ''));
+                    $k = $vid . '|' . $note;
+
+                    return [
+                        'key' => (string) Str::uuid(),
+                        'quantity' => (int) ($row['quantity'] ?? 0),
+                        'variant_id' => $vid,
+                        'note' => array_key_exists('note', $row) ? ($row['note'] === '' ? null : (string) $row['note']) : null,
+                        'addons' => $existingAddonsByVariantKey[$k] ?? [],
+                    ];
+                })->all();
 
                 if (! $isSplitable) {
                     $merged = [];
@@ -1123,6 +1352,7 @@ class PosPage extends Component
                         'quantity' => $baseQty,
                         'variant_id' => null,
                         'note' => null,
+                        'addons' => [],
                     ]];
                 } else {
                     $sum = collect($allocations)->sum(fn ($a) => (int) ($a['quantity'] ?? 0));
@@ -1132,6 +1362,7 @@ class PosPage extends Component
                             'quantity' => $baseQty - (int) $sum,
                             'variant_id' => null,
                             'note' => null,
+                            'addons' => [],
                         ];
                     }
                     if ($sum > $baseQty) {
@@ -1152,8 +1383,27 @@ class PosPage extends Component
                             'quantity' => $baseQty,
                             'variant_id' => null,
                             'note' => null,
+                            'addons' => [],
                         ]] : $normalized;
                     }
+                }
+
+                $compProduct = $componentProducts->get($componentProductId);
+                $addonGroups = [];
+                if ($compProduct) {
+                    $addonGroups = $compProduct->addons
+                        ->sortBy('name')
+                        ->groupBy(fn ($a) => $a->addonCategory?->name ?? 'Lainnya')
+                        ->map(fn ($items, $category) => [
+                            'category' => (string) $category,
+                            'items' => $items->sortBy('name')->values()->map(fn ($a) => [
+                                'id' => (int) $a->id,
+                                'name' => (string) $a->name,
+                                'price' => (int) round((float) $a->price),
+                            ])->all(),
+                        ])
+                        ->values()
+                        ->all();
                 }
 
                 return [
@@ -1163,6 +1413,7 @@ class PosPage extends Component
                     'base_quantity' => $baseQty,
                     'is_splitable' => $isSplitable,
                     'variant_options' => $options,
+                    'addon_groups' => $addonGroups,
                     'allocations' => $allocations,
                 ];
             })
@@ -1336,11 +1587,24 @@ class PosPage extends Component
 
                 $sumQty += $qty;
 
+                $allocAddons = [];
+                foreach ($alloc['addons'] ?? [] as $addon) {
+                    $allocAddons[] = [
+                        'id' => (int) $addon['id'],
+                        'name' => (string) $addon['name'],
+                        'price' => (int) $addon['price'],
+                        'quantity' => 1,
+                    ];
+                }
+
                 $packageComponents[] = [
                     'product_id' => $componentProductId,
                     'variant_id' => $variantId,
                     'quantity' => $qty,
+                    'product_name' => (string) $row['component_product_name'] ?? '',
+                    'variant_name' => collect($row['variant_options'] ?? [])->firstWhere('id', $variantId)['name'] ?? '',
                     'note' => $note === '' ? null : $note,
+                    'addons' => $allocAddons,
                 ];
             }
 
@@ -1364,7 +1628,9 @@ class PosPage extends Component
             'percent' => $parentVariant->percent === null ? null : (int) $parentVariant->percent,
             'quantity' => 1,
             'note' => null,
+            'is_package' => true,
             'package_type' => 'complex',
+            'addons' => [],
             'package_components' => collect($packageComponents)->values()->all(),
         ];
 
@@ -2424,6 +2690,7 @@ class PosPage extends Component
                         'variant_id' => $componentVariantId,
                         'base_qty' => 0,
                         'note' => $note,
+                        'addons' => $row['addons'] ?? [],
                     ];
                 }
 
@@ -2436,7 +2703,7 @@ class PosPage extends Component
                     continue;
                 }
 
-                TransactionItem::query()->create([
+                $childItem = TransactionItem::query()->create([
                     'transaction_id' => $trx->id,
                     'parent_transaction_item_id' => (int) $parent->id,
                     'product_id' => (int) ($row['product_id'] ?? 0),
@@ -2448,14 +2715,28 @@ class PosPage extends Component
                     'manual_discount_amount' => 0,
                     'note' => $row['note'] ?? null,
                 ]);
+
+                foreach ($row['addons'] ?? [] as $addon) {
+                    $addonId = (int) ($addon['id'] ?? 0);
+                    if ($addonId > 0) {
+                        TransactionItemAddon::query()->create([
+                            'transaction_item_id' => (int) $childItem->id,
+                            'addon_id' => $addonId,
+                            'name' => (string) $addon['name'],
+                            'quantity' => 1,
+                            'price' => (int) ($addon['price'] ?? 0),
+                        ]);
+                    }
+                }
             }
 
             return;
         }
 
         $note = $cartItem['note'] ?? null;
+        $packageComponents = $cartItem['package_components'] ?? [];
 
-        foreach ($product->packageItems as $packageItem) {
+        foreach ($product->packageItems as $index => $packageItem) {
             $componentVariant = $packageItem->componentVariant;
             if (! $componentVariant) {
                 continue;
@@ -2466,7 +2747,7 @@ class PosPage extends Component
                 continue;
             }
 
-            TransactionItem::query()->create([
+            $childItem = TransactionItem::query()->create([
                 'transaction_id' => $trx->id,
                 'parent_transaction_item_id' => (int) $parent->id,
                 'product_id' => (int) $componentVariant->product_id,
@@ -2478,6 +2759,22 @@ class PosPage extends Component
                 'manual_discount_amount' => 0,
                 'note' => $note === '' ? null : $note,
             ]);
+
+            $childComp = $packageComponents[$index] ?? null;
+            if (is_array($childComp)) {
+                foreach ($childComp['addons'] ?? [] as $addon) {
+                    $addonId = (int) ($addon['id'] ?? 0);
+                    if ($addonId > 0) {
+                        TransactionItemAddon::query()->create([
+                            'transaction_item_id' => (int) $childItem->id,
+                            'addon_id' => $addonId,
+                            'name' => (string) $addon['name'],
+                            'quantity' => 1,
+                            'price' => (int) ($addon['price'] ?? 0),
+                        ]);
+                    }
+                }
+            }
         }
     }
 
@@ -2823,6 +3120,11 @@ class PosPage extends Component
                 $addonPrice = (int) ($addon['price'] ?? 0);
                 $addonQty = (int) ($addon['quantity'] ?? 1);
                 $subtotal += $addonPrice * $addonQty * $qty;
+            }
+            foreach ($item['package_components'] ?? [] as $child) {
+                foreach (($child['addons'] ?? []) as $ca) {
+                    $subtotal += (int) ($ca['price'] ?? 0);
+                }
             }
         }
 

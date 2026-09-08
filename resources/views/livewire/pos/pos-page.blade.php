@@ -299,6 +299,9 @@
                                         $original = (int) ($item['original_price'] ?? $price);
                                         $isPromo = $original > 0 && $price > 0 && $price < $original;
                                         $isComplexPackage = (string) ($item['package_type'] ?? '') === 'complex';
+                                        $isSimplePackage = (string) ($item['package_type'] ?? '') === 'simple';
+                                        $isPackage = $isComplexPackage || $isSimplePackage;
+                                        $packageComponents = $item['package_components'] ?? [];
                                     @endphp
                                     <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
                                         <div class="flex items-start justify-between gap-3">
@@ -306,6 +309,37 @@
                                                 <p class="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{{ $item['name'] ?? '-' }}</p>
                                                 @if (! empty($item['variant_name']))
                                                     <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ $item['variant_name'] }}</p>
+                                                @endif
+                                                @if ($isPackage && count($packageComponents) > 0)
+                                                    <div class="mt-1.5 space-y-1">
+                                                        @foreach ($packageComponents as $child)
+                                                            @php
+                                                                $childQty = (int) ($child['quantity'] ?? 0);
+                                                                $childAddonTotal = 0;
+                                                                foreach ($child['addons'] ?? [] as $ca) {
+                                                                    $childAddonTotal += (int) ($ca['price'] ?? 0);
+                                                                }
+                                                            @endphp
+                                                            <div class="flex items-start justify-between gap-2 text-[11px] text-gray-600 dark:text-gray-400">
+                                                                <div class="min-w-0 flex-1">
+                                                                    <span class="font-medium">• {{ $child['product_name'] ?? '' }}</span>
+                                                                    @if (($child['variant_name'] ?? '') !== '')
+                                                                        <span class="text-gray-500 dark:text-gray-500"> ({{ $child['variant_name'] }})</span>
+                                                                    @endif
+                                                                    @if (!empty($child['addons']))
+                                                                        <div class="mt-0.5 flex flex-wrap gap-1">
+                                                                            @foreach ($child['addons'] as $ca)
+                                                                                <span class="inline-flex items-center rounded bg-brand-50 px-1 py-px text-[9px] font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                                                                                    {{ $ca['name'] }} +Rp{{ number_format((int) ($ca['price'] ?? 0), 0, ',', '.') }}
+                                                                                </span>
+                                                                            @endforeach
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                                <span class="shrink-0 font-semibold">{{ $childQty }}×</span>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
                                                 @endif
                                                 @if (! empty($item['addons']))
                                                     <div class="mt-1 flex flex-wrap gap-1">
@@ -348,7 +382,13 @@
                                                 foreach (($item['addons'] ?? []) as $addon) {
                                                     $addonTotal += (int) ($addon['price'] ?? 0) * (int) ($addon['quantity'] ?? 1);
                                                 }
-                                                $lineTotal = $qty * $price + $addonTotal * $qty;
+                                                $childAddonTotal = 0;
+                                                foreach (($item['package_components'] ?? []) as $child) {
+                                                    foreach (($child['addons'] ?? []) as $ca) {
+                                                        $childAddonTotal += (int) ($ca['price'] ?? 0);
+                                                    }
+                                                }
+                                                $lineTotal = $qty * $price + $addonTotal * $qty + $childAddonTotal;
                                             @endphp
                                             <span class="text-sm font-semibold text-gray-800 dark:text-white/90">Rp {{ number_format($lineTotal, 0, ',', '.') }}</span>
                                         </div>
@@ -611,6 +651,54 @@
                         </div>
                     </div>
 
+                    @if ($isSimplePackage && count($simplePackageComponentAddons) > 0)
+                        <div class="space-y-4">
+                            <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Isi Paket</h4>
+                            @foreach ($simplePackageComponentAddons as $ci => $comp)
+                                @php $compAddonGroups = $comp['addon_groups'] ?? []; @endphp
+                                <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-white/[0.03]">
+                                    <div class="flex items-center justify-between">
+                                        <div class="min-w-0">
+                                            <p class="truncate text-sm font-semibold text-gray-800 dark:text-white/90">{{ $comp['product_name'] }}{{ ($comp['variant_name'] ?? '') !== '' ? ' ('.$comp['variant_name'].')' : '' }}</p>
+                                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">×{{ $comp['base_quantity'] }}</p>
+                                        </div>
+                                        @php
+                                            $compAddonTotal = collect($comp['selected_addons'] ?? [])->sum(fn($a) => (int) ($a['price'] ?? 0));
+                                        @endphp
+                                        @if ($compAddonTotal > 0)
+                                            <span class="text-xs font-semibold text-brand-600 dark:text-brand-400">+Rp {{ number_format($compAddonTotal, 0, ',', '.') }}</span>
+                                        @endif
+                                    </div>
+                                    @if (count($compAddonGroups) > 0)
+                                        @foreach ($compAddonGroups as $agi => $group)
+                                            <div class="mt-3">
+                                                <p class="mb-2 text-[11px] font-semibold text-gray-600 dark:text-gray-400">{{ $group['category'] }}</p>
+                                                <div class="flex gap-2 overflow-x-auto pb-1">
+                                                    @foreach ($group['items'] as $ao)
+                                                        @php
+                                                            $aid = (int) ($ao['id'] ?? 0);
+                                                            $isSel = collect($comp['selected_addons'] ?? [])->contains(fn($sa) => (int) $sa['id'] === $aid);
+                                                        @endphp
+                                                        <button type="button" wire:click="toggleSimplePackageComponentAddon({{ $ci }}, {{ $aid }}, @js($ao['name']), {{ (int) ($ao['price'] ?? 0) }})" wire:key="simple-pkg-addon-{{ $ci }}-{{ $aid }}" class="w-[31%] min-w-[31%] max-w-[32%] shrink-0 rounded-xl border px-3 py-2 text-left transition {{ $isSel ? 'border-brand-500 bg-brand-50/50 ring-1 ring-brand-500 dark:border-brand-500 dark:bg-brand-500/10' : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-white/[0.03]' }}">
+                                                            <p class="truncate text-xs font-semibold text-gray-800 dark:text-white/90">{{ $ao['name'] }}</p>
+                                                            <p class="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-gray-400">{{ (int) ($ao['price'] ?? 0) > 0 ? '+Rp '.number_format((int) ($ao['price'] ?? 0), 0, ',', '.') : 'Gratis' }}</p>
+                                                            @if ($isSel)
+                                                                <span class="mt-1 inline-flex items-center gap-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400">
+                                                                    <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                                                    Dipilih
+                                                                </span>
+                                                            @endif
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
                     @if (count($addonGroups) > 0)
                         <div class="space-y-4">
                             <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Add-on</h4>
@@ -768,6 +856,37 @@
                                                     />
                                                 </div>
                                             </div>
+
+                                            @php
+                                                $compAddonGroups = $row['addon_groups'] ?? [];
+                                                $allocAddons = $alloc['addons'] ?? [];
+                                            @endphp
+                                            @if (count($compAddonGroups) > 0)
+                                                @foreach ($compAddonGroups as $agi => $group)
+                                                    <div class="mt-3">
+                                                        <p class="mb-1.5 text-[11px] font-semibold text-gray-600 dark:text-gray-400">{{ $group['category'] }}</p>
+                                                        <div class="flex gap-2 overflow-x-auto pb-1">
+                                                            @foreach ($group['items'] as $ao)
+                                                                @php
+                                                                    $aid = (int) ($ao['id'] ?? 0);
+                                                                    $isSel = collect($allocAddons)->contains(fn($sa) => (int) $sa['id'] === $aid);
+                                                                @endphp
+                                                                <button type="button" wire:click="toggleComplexComponentAddon('{{ $allocKey }}', {{ $aid }}, @js($ao['name']), {{ (int) ($ao['price'] ?? 0) }})" wire:key="complex-pkg-addon-{{ $allocKey }}-{{ $aid }}" class="w-[31%] min-w-[31%] max-w-[32%] shrink-0 rounded-xl border px-3 py-2 text-left transition {{ $isSel ? 'border-brand-500 bg-brand-50/50 ring-1 ring-brand-500 dark:border-brand-500 dark:bg-brand-500/10' : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-white/[0.03]' }}">
+                                                                    <p class="truncate text-xs font-semibold text-gray-800 dark:text-white/90">{{ $ao['name'] }}</p>
+                                                                    <p class="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-gray-400">{{ (int) ($ao['price'] ?? 0) > 0 ? '+Rp '.number_format((int) ($ao['price'] ?? 0), 0, ',', '.') : 'Gratis' }}</p>
+                                                                    @if ($isSel)
+                                                                        <span class="mt-1 inline-flex items-center gap-0.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400">
+                                                                            <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                                                            Dipilih
+                                                                        </span>
+                                                                    @endif
+                                                                </button>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            @endif
+
                                             @if ($canRemove)
                                                 <div class="mt-2 flex justify-end">
                                                     <button type="button" wire:click="removeComplexPackageAllocation('{{ $rowKey }}', '{{ $allocKey }}')" class="text-xs font-semibold text-error-600 hover:text-error-700">

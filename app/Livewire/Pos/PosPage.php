@@ -23,6 +23,7 @@ use App\Support\Products\ItemNameFormatter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Component;
 
@@ -877,6 +878,17 @@ class PosPage extends Component
                 return;
             }
         }
+    }
+
+    public function qrisImageUrl(): ?string
+    {
+        $path = Setting::current()->qris_image;
+
+        if (! $path) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     public function closeVariantModal(): void

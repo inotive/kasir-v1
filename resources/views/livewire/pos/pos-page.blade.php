@@ -1178,6 +1178,22 @@
                                                 <x-common.input-error for="paymentMethod" class="mt-2 text-center text-xs text-error-600" />
                                             </div>
 
+                                            @if ($paymentMethod === 'qris')
+                                                <div class="sm:col-span-2">
+                                                    @if ($this->qrisImageUrl())
+                                                        <div class="flex flex-col items-center rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                                                            <img src="{{ $this->qrisImageUrl() }}" alt="QRIS" class="h-64 w-64 object-contain" />
+                                                            <p class="mt-3 text-sm font-bold text-gray-900 dark:text-white">Rp {{ number_format((int) $total, 0, ',', '.') }}</p>
+                                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Tunjukkan QR kepada pelanggan untuk dipindai</p>
+                                                        </div>
+                                                    @else
+                                                        <div class="flex flex-col items-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-center dark:border-gray-700 dark:bg-white/[0.03]">
+                                                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">QRIS statis belum diupload</p>
+                                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload melalui Pengaturan → Toko</p>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
                                             @if ($paymentMethod === 'cash')
                                                 <div class="sm:col-span-2">
                                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Uang Diterima</label>

@@ -682,6 +682,7 @@ class TransactionShowPage extends Component
             'voidNeedsApproval' => (bool) $voidNeedsApproval,
             'refundNeedsApproval' => (bool) $refundNeedsApproval,
             'deleteNeedsApproval' => (bool) $deleteNeedsApproval,
+            'refundTotal' => (int) ($transaction->total ?? 0),
             'correctionRules' => [
                 'void_pending_requires_approval' => (bool) ($rules->corrections_void_pending_requires_approval ?? false),
                 'void_quick_max_count_per_day' => (int) ($rules->corrections_void_quick_max_count_per_day ?? 0),

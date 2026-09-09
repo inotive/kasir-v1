@@ -566,6 +566,9 @@
                         </div>
                         <div>
                             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nominal Refund</label>
+                            <div class="mb-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                                <p>Total transaksi: <span class="font-semibold text-gray-800 dark:text-white/90">Rp{{ number_format((int) ($refundTotal ?? 0), 0, ',', '.') }}</span></p>
+                            </div>
                             <x-common.rupiah-input wire-model="refundAmount" placeholder="0" />
                             <x-common.input-error for="refundAmount" />
                             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Batas refund cepat: Rp{{ number_format($refundQuickMaxAmount, 0, ',', '.') }} (maks {{ number_format($refundQuickMaxCount, 0, ',', '.') }}/hari/kasir). Jika melebihi, sistem minta PIN.</p>

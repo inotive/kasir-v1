@@ -289,6 +289,10 @@ class ProductFormPage extends Component
 
     public function updatedIsPackage(bool $value): void
     {
+        if ($value) {
+            $this->selectedAddonIds = [];
+        }
+
         if (! $value) {
             $this->packageItems = [];
             $this->complexPackageItems = [];
@@ -470,7 +474,7 @@ class ProductFormPage extends Component
                     $this->productId = (int) $product->id;
                 }
 
-                $product->addons()->sync($this->selectedAddonIds);
+                $product->addons()->sync($isPackage ? [] : $this->selectedAddonIds);
 
                 $keptVariantIds = [];
                 $variantKeyToId = [];

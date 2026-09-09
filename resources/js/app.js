@@ -112,7 +112,11 @@ document.addEventListener('alpine:init', () => {
                 this.displayValue = '';
                 return;
             }
-            this.displayValue = new Intl.NumberFormat('id-ID').format(this.value);
+            this.displayValue = this.formatRupiah(this.value);
+        },
+
+        formatRupiah(raw) {
+            return String(raw).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         },
 
         unformat(val) {
@@ -128,7 +132,7 @@ document.addEventListener('alpine:init', () => {
             this.value = raw;
             
             if (raw !== null) {
-                this.displayValue = new Intl.NumberFormat('id-ID').format(raw);
+                this.displayValue = this.formatRupiah(raw);
             } else {
                 this.displayValue = '';
             }

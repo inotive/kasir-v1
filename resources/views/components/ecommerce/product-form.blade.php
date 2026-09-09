@@ -362,8 +362,7 @@
                                     </td>
                                     <td class="px-4 py-3 align-top">
                                         <input
-                                                x-data="currencyInput($wire.entangle('variants.{{ $index }}.price'))"
-                                                wire:model.live="variants.{{ $index }}.price"
+                                                x-data="currencyInput($wire.entangle('variants.{{ $index }}.price').live)"
                                                 x-model="displayValue"
                                                 @input="handleInput"
                                                 type="text"
@@ -551,7 +550,7 @@
                                 <div>
                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Harga</label>
                                     <input
-                                        x-data="currencyInput($wire.entangle('variants.{{ $index }}.price'))"
+                                        x-data="currencyInput($wire.entangle('variants.{{ $index }}.price').live)"
                                         x-model="displayValue"
                                         @input="handleInput"
                                         type="text"
@@ -703,6 +702,7 @@
             </div>
         </div>
 
+        @if (! $isPackage)
         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
                 <h3 class="text-lg font-medium text-gray-800 dark:text-white">Add-on Produk</h3>
@@ -763,6 +763,7 @@
                 @endif
             </div>
         </div>
+        @endif
 
         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-800">

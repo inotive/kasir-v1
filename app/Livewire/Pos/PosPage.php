@@ -70,6 +70,12 @@ class PosPage extends Component
 
     public ?int $editingComplexPackageCartIndex = null;
 
+    public bool $complexPackageFromVariantModal = false;
+
+    public array $complexPackageDraft = [];
+
+    public ?int $complexPackageDraftParentVariantId = null;
+
     public string $addonSearch = '';
 
     public array $addonSearchResults = [];
@@ -519,6 +525,9 @@ class PosPage extends Component
         $this->pendingVariantForAddon = null;
         $this->isSimplePackage = (bool) $product->is_package && (string) ($product->package_type ?? 'simple') === 'simple';
         $this->simplePackageComponentAddons = [];
+        $this->complexPackageFromVariantModal = false;
+        $this->complexPackageDraft = [];
+        $this->complexPackageDraftParentVariantId = null;
 
         if ($this->isSimplePackage) {
             $selectedVariant = $variants->first();
@@ -639,7 +648,16 @@ class PosPage extends Component
 
         if ((bool) $variant->product->is_package && (string) ($variant->product->package_type ?? 'simple') === 'complex') {
             $this->variantModalOpen = false;
-            $this->openComplexPackageModal((int) $variant->id);
+            $parentVariantId = (int) $variant->id;
+            if ($this->complexPackageDraftParentVariantId === $parentVariantId && $this->complexPackageDraft !== []) {
+                $this->complexPackageParentVariantId = $parentVariantId;
+                $this->complexPackageComponents = $this->complexPackageDraft;
+                $this->editingComplexPackageCartIndex = null;
+                $this->complexPackageModalOpen = true;
+            } else {
+                $this->openComplexPackageModal($parentVariantId);
+            }
+            $this->complexPackageFromVariantModal = true;
 
             return;
         }
@@ -782,6 +800,9 @@ class PosPage extends Component
         }
 
         if ((bool) $variant->product->is_package && (string) ($variant->product->package_type ?? 'simple') === 'complex') {
+            $this->complexPackageFromVariantModal = false;
+            $this->complexPackageDraft = [];
+            $this->complexPackageDraftParentVariantId = null;
             $this->openComplexPackageModal((int) $variant->id);
             $this->variantModalOpen = false;
 
@@ -1106,6 +1127,9 @@ class PosPage extends Component
         $this->selectedAddonsWithQty = [];
         $this->isSimplePackage = false;
         $this->simplePackageComponentAddons = [];
+        $this->complexPackageFromVariantModal = false;
+        $this->complexPackageDraft = [];
+        $this->complexPackageDraftParentVariantId = null;
     }
 
     public function confirmAddonsToCart(): void
@@ -1237,6 +1261,9 @@ class PosPage extends Component
         }
 
         $this->editingComplexPackageCartIndex = $index;
+        $this->complexPackageFromVariantModal = false;
+        $this->complexPackageDraft = [];
+        $this->complexPackageDraftParentVariantId = null;
         $this->populateComplexPackageModal($parentVariant, $cartItem);
     }
 
@@ -1518,6 +1545,21 @@ class PosPage extends Component
         $this->complexPackageParentVariantId = null;
         $this->complexPackageComponents = [];
         $this->editingComplexPackageCartIndex = null;
+        $this->complexPackageFromVariantModal = false;
+        $this->complexPackageDraft = [];
+        $this->complexPackageDraftParentVariantId = null;
+    }
+
+    public function backToVariantModal(): void
+    {
+        $this->complexPackageDraft = $this->complexPackageComponents;
+        $this->complexPackageDraftParentVariantId = $this->complexPackageParentVariantId;
+        $this->complexPackageModalOpen = false;
+        $this->complexPackageParentVariantId = null;
+        $this->complexPackageComponents = [];
+        $this->editingComplexPackageCartIndex = null;
+        $this->complexPackageFromVariantModal = false;
+        $this->variantModalOpen = true;
     }
 
     public function confirmComplexPackageToCart(): void

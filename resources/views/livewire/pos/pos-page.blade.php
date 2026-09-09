@@ -909,13 +909,25 @@
                         @endforeach
                     </div>
                 </div>
-                <div class="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4 dark:border-gray-800">
-                    <button type="button" wire:click="closeComplexPackageModal" class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
-                        Batal
-                    </button>
-                    <button type="button" wire:click="confirmComplexPackageToCart" @disabled($invalid) class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50">
-                        Konfirmasi
-                    </button>
+                <div class="flex items-center justify-between gap-2 border-t border-gray-200 px-5 py-4 dark:border-gray-800">
+                    <div>
+                        @if ($complexPackageFromVariantModal)
+                            <button type="button" wire:click="backToVariantModal" class="shadow-theme-xs inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M19 12H5M5 12L11 6M5 12L11 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Kembali
+                            </button>
+                        @endif
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" wire:click="closeComplexPackageModal" class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                            Batal
+                        </button>
+                        <button type="button" wire:click="confirmComplexPackageToCart" @disabled($invalid) class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50">
+                            Konfirmasi
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

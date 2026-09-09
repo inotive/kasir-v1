@@ -220,9 +220,7 @@ class ProductFormPage extends Component
 
     protected function rules(): array
     {
-        $imageRules = $this->productId
-            ? ['nullable', 'image', 'max:2048']
-            : ['required', 'image', 'max:2048'];
+        $imageRules = ['nullable', 'image', 'max:2048'];
 
         $hasKitchenSources = $this->kitchenPrinterSourcesQuery()->exists();
         $kitchenExistsRule = Rule::exists('printer_sources', 'id')

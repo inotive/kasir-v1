@@ -4,10 +4,17 @@ namespace App\Livewire\Product;
 
 use App\Models\Addon;
 use App\Models\AddonCategory;
+use App\Models\AddonRecipe;
+use App\Models\Ingredient;
 use App\Models\Tenant;
 use App\Models\TransactionItemAddon;
+use App\Support\Number\QuantityFormatter;
+use App\Support\Number\QuantityParser;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -41,6 +48,29 @@ class AddonsPage extends Component
     public string $formPrice = '';
 
     public bool $formIsAvailable = true;
+
+    public array $formRecipes = [];
+
+    protected array $validationAttributes = [
+        'formName' => 'Nama add-on',
+        'formAddonCategoryId' => 'Kategori',
+        'formPrice' => 'Harga',
+        'formRecipes' => 'Resep bahan',
+        'formRecipes.*.ingredient_id' => 'Bahan baku',
+        'formRecipes.*.quantity' => 'Qty / porsi',
+    ];
+
+    protected function messages(): array
+    {
+        return [
+            'required' => ':attribute wajib diisi.',
+            'string' => ':attribute harus berupa teks.',
+            'max.string' => ':attribute maksimal :max karakter.',
+            'integer' => ':attribute harus berupa angka.',
+            'min.numeric' => ':attribute minimal :min.',
+            'exists' => ':attribute yang dipilih tidak valid.',
+        ];
+    }
 
     // Category tab
     public string $categorySearch = '';
@@ -202,6 +232,7 @@ class AddonsPage extends Component
         $this->formAddonCategoryId = null;
         $this->formPrice = '';
         $this->formIsAvailable = true;
+        $this->formRecipes = [];
         $this->resetValidation();
         $this->addonModalOpen = true;
     }
@@ -214,20 +245,78 @@ class AddonsPage extends Component
 
     public function startEditAddon(int $addonId): void
     {
-        $addon = Addon::query()->findOrFail($addonId);
+        $addon = Addon::query()->with('recipes')->findOrFail($addonId);
 
         $this->editingAddonId = (int) $addon->id;
         $this->formName = (string) $addon->name;
         $this->formAddonCategoryId = (int) $addon->addon_category_id;
         $this->formPrice = (string) $addon->price;
         $this->formIsAvailable = (bool) $addon->is_available;
+        $this->formRecipes = $addon->recipes
+            ->map(fn (AddonRecipe $recipe) => [
+                'key' => (string) Str::uuid(),
+                'ingredient_id' => (int) $recipe->ingredient_id,
+                'quantity' => QuantityFormatter::format((float) $recipe->quantity),
+            ])
+            ->values()
+            ->all();
         $this->resetValidation();
         $this->addonModalOpen = true;
     }
 
+    public function addFormRecipe(): void
+    {
+        $this->formRecipes[] = [
+            'key' => (string) Str::uuid(),
+            'ingredient_id' => null,
+            'quantity' => '',
+        ];
+    }
+
+    public function removeFormRecipe(string $key): void
+    {
+        $this->formRecipes = collect($this->formRecipes)
+            ->reject(fn (array $row) => (string) ($row['key'] ?? '') === $key)
+            ->values()
+            ->all();
+    }
+
+    protected function recipeRules(): array
+    {
+        return [
+            'formRecipes' => ['array'],
+            'formRecipes.*.key' => ['required', 'string', 'max:255', 'distinct'],
+            'formRecipes.*.ingredient_id' => ['required', 'integer', 'exists:ingredients,id'],
+            'formRecipes.*.quantity' => ['required', function (string $attribute, $value, $fail): void {
+                $parsed = QuantityParser::parse($value);
+                if ($parsed === null) {
+                    $fail('Qty / porsi tidak valid.');
+
+                    return;
+                }
+
+                if ($parsed < 0.001) {
+                    $fail('Qty / porsi minimal 0,001.');
+                }
+            }],
+        ];
+    }
+
+    protected function assertNoDuplicateRecipeIngredients(array $recipes): void
+    {
+        $ids = array_map(fn ($row) => (int) ($row['ingredient_id'] ?? 0), $recipes);
+        $ids = array_filter($ids, fn (int $id) => $id > 0);
+
+        if (count($ids) !== count(array_unique($ids))) {
+            throw ValidationException::withMessages([
+                'formRecipes' => 'Bahan baku pada resep add-on tidak boleh duplikat.',
+            ]);
+        }
+    }
+
     public function storeAddon(): void
     {
-        $validated = $this->validate([
+        $validated = $this->validate(array_merge([
             'formName' => [
                 'required',
                 'string',
@@ -242,14 +331,26 @@ class AddonsPage extends Component
                 'integer',
                 'min:0',
             ],
-        ]);
+        ], $this->recipeRules()));
 
-        Addon::query()->create([
-            'name' => $validated['formName'],
-            'addon_category_id' => (int) $validated['formAddonCategoryId'],
-            'price' => (int) $validated['formPrice'],
-            'is_available' => $this->formIsAvailable,
-        ]);
+        $this->assertNoDuplicateRecipeIngredients($validated['formRecipes'] ?? []);
+
+        DB::transaction(function () use ($validated) {
+            $addon = Addon::query()->create([
+                'name' => $validated['formName'],
+                'addon_category_id' => (int) $validated['formAddonCategoryId'],
+                'price' => (int) $validated['formPrice'],
+                'is_available' => $this->formIsAvailable,
+            ]);
+
+            foreach ($validated['formRecipes'] ?? [] as $row) {
+                AddonRecipe::query()->create([
+                    'addon_id' => (int) $addon->id,
+                    'ingredient_id' => (int) $row['ingredient_id'],
+                    'quantity' => (float) (QuantityParser::parse($row['quantity'] ?? null) ?? 0),
+                ]);
+            }
+        });
 
         $this->closeAddonModal();
         $this->dispatch('toast', type: 'success', message: 'Add-on berhasil ditambahkan.');
@@ -261,7 +362,7 @@ class AddonsPage extends Component
             return;
         }
 
-        $validated = $this->validate([
+        $validated = $this->validate(array_merge([
             'formName' => [
                 'required',
                 'string',
@@ -276,16 +377,32 @@ class AddonsPage extends Component
                 'integer',
                 'min:0',
             ],
-        ]);
+        ], $this->recipeRules()));
 
-        Addon::query()
-            ->whereKey($this->editingAddonId)
-            ->update([
-                'name' => $validated['formName'],
-                'addon_category_id' => (int) $validated['formAddonCategoryId'],
-                'price' => (int) $validated['formPrice'],
-                'is_available' => $this->formIsAvailable,
-            ]);
+        $this->assertNoDuplicateRecipeIngredients($validated['formRecipes'] ?? []);
+
+        DB::transaction(function () use ($validated) {
+            Addon::query()
+                ->whereKey($this->editingAddonId)
+                ->update([
+                    'name' => $validated['formName'],
+                    'addon_category_id' => (int) $validated['formAddonCategoryId'],
+                    'price' => (int) $validated['formPrice'],
+                    'is_available' => $this->formIsAvailable,
+                ]);
+
+            AddonRecipe::query()
+                ->where('addon_id', (int) $this->editingAddonId)
+                ->delete();
+
+            foreach ($validated['formRecipes'] ?? [] as $row) {
+                AddonRecipe::query()->create([
+                    'addon_id' => (int) $this->editingAddonId,
+                    'ingredient_id' => (int) $row['ingredient_id'],
+                    'quantity' => (float) (QuantityParser::parse($row['quantity'] ?? null) ?? 0),
+                ]);
+            }
+        });
 
         $this->closeAddonModal();
         $this->dispatch('toast', type: 'success', message: 'Add-on berhasil diperbarui.');
@@ -339,10 +456,29 @@ class AddonsPage extends Component
             ->orderBy($this->sortField, $this->sortAsc ? 'asc' : 'desc')
             ->paginate($this->perPage);
 
+        $ingredients = Ingredient::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'unit', 'cost_price']);
+
+        $ingredientCosts = $ingredients->pluck('cost_price', 'id')->map(fn ($v) => (float) $v)->all();
+        $ingredientUnits = $ingredients->pluck('unit', 'id')->map(fn ($v) => (string) $v)->all();
+
+        $formHpp = 0.0;
+        foreach ($this->formRecipes as $row) {
+            $ingredientId = (int) ($row['ingredient_id'] ?? 0);
+            $qty = (float) (QuantityParser::parse($row['quantity'] ?? null) ?? 0);
+            $formHpp += (float) ($ingredientCosts[$ingredientId] ?? 0) * $qty;
+        }
+
         return view('livewire.product.addons-page', [
             'addonCategories' => $addonCategories,
             'categoriesList' => $categoriesList,
             'addons' => $addons,
+            'ingredients' => $ingredients,
+            'ingredientCosts' => $ingredientCosts,
+            'ingredientUnits' => $ingredientUnits,
+            'formHpp' => (int) round($formHpp),
         ])->layout('layouts.app', ['title' => $this->title]);
     }
 }

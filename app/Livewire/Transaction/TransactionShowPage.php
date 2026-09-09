@@ -197,7 +197,12 @@ class TransactionShowPage extends Component
             ->findOrFail($this->transactionId);
 
         try {
-            $inventory->applyTransaction($transaction);
+            $skipped = $inventory->applyTransaction($transaction);
+            $this->dispatch('toast', type: 'success', message: 'Stok berhasil diterapkan.');
+
+            if ($skipped !== []) {
+                $this->dispatch('toast', type: 'warning', message: 'Tanpa pengurangan (resep belum diatur): '.implode(', ', $skipped));
+            }
         } catch (ValidationException $e) {
             $message = (string) ($e->errors()['inventory'][0] ?? 'Gagal memproses inventory.');
             $this->addError('inventory', $message);

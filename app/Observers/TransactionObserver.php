@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Transaction;
 use App\Services\Inventory\InventoryService;
 use App\Services\PointService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class TransactionObserver
@@ -22,7 +23,14 @@ class TransactionObserver
         }
 
         try {
-            app(InventoryService::class)->applyTransaction($transaction);
+            $skipped = app(InventoryService::class)->applyTransaction($transaction);
+
+            if ($skipped !== []) {
+                Log::warning('Inventory applied with skipped items (no recipes).', [
+                    'transaction_id' => (int) $transaction->id,
+                    'skipped' => $skipped,
+                ]);
+            }
         } catch (ValidationException) {
         }
 

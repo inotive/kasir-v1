@@ -10,16 +10,19 @@ use Illuminate\Validation\ValidationException;
 
 class InventoryService
 {
-    public function applyTransaction(Transaction $transaction): void
+    /**
+     * @return array<int, string> Labels deducted with zero quantity (no recipes).
+     */
+    public function applyTransaction(Transaction $transaction): array
     {
-        DB::transaction(function () use ($transaction): void {
+        return DB::transaction(function () use ($transaction): array {
             $locked = Transaction::query()
                 ->whereKey($transaction->id)
                 ->lockForUpdate()
                 ->first();
 
             if (! $locked || $locked->inventory_applied_at) {
-                return;
+                return [];
             }
 
             $exists = InventoryMovement::query()
@@ -32,12 +35,13 @@ class InventoryService
                 $this->applyTransactionHpp($locked);
                 $locked->forceFill(['inventory_applied_at' => now()])->save();
 
-                return;
+                return [];
             }
 
             $locked->loadMissing([
                 'transactionItems.variant.recipes.ingredient',
                 'transactionItems.product.recipes.ingredient',
+                'transactionItems.itemAddons.addon.recipes.ingredient',
             ]);
 
             $items = collect($locked->transactionItems);
@@ -62,7 +66,7 @@ class InventoryService
                 ]);
             }
 
-            $missingItems = collect($locked->transactionItems)
+            $itemsMissingRecipes = collect($locked->transactionItems)
                 ->filter(function ($item): bool {
                     if ($item->parent_transaction_item_id === null && $item->product && (bool) $item->product->is_package) {
                         return false;
@@ -77,7 +81,13 @@ class InventoryService
                     }
 
                     return true;
-                })
+                });
+
+            $missingItemIds = $itemsMissingRecipes
+                ->map(fn ($item) => (int) $item->id)
+                ->all();
+
+            $skipped = $itemsMissingRecipes
                 ->map(function ($item): string {
                     $product = $item->product;
                     $variant = $item->variant;
@@ -88,17 +98,16 @@ class InventoryService
 
                     return (string) (($product?->name ?? 'Produk').' (tanpa varian)');
                 })
-                ->values();
-
-            if ($missingItems->isNotEmpty()) {
-                throw ValidationException::withMessages([
-                    'inventory' => 'Resep/BOM belum diatur untuk: '.$missingItems->implode(', '),
-                ]);
-            }
+                ->values()
+                ->all();
 
             $ingredientTotals = [];
 
             foreach ($locked->transactionItems as $item) {
+                if (in_array((int) $item->id, $missingItemIds, true)) {
+                    continue;
+                }
+
                 if ($item->parent_transaction_item_id === null && $item->product && (bool) $item->product->is_package) {
                     continue;
                 }
@@ -121,12 +130,55 @@ class InventoryService
                 }
             }
 
+            $itemsById = collect($locked->transactionItems)->keyBy('id');
+
+            foreach ($locked->transactionItems as $item) {
+                foreach ($item->itemAddons ?? [] as $itemAddon) {
+                    $addon = $itemAddon->addon ?? null;
+                    if (! $addon) {
+                        $skipped[] = 'Add-on '.(string) ($itemAddon->name ?: 'tanpa nama');
+
+                        continue;
+                    }
+
+                    $recipes = $addon->recipes ?? collect();
+                    if ($recipes->isEmpty()) {
+                        $skipped[] = 'Add-on '.(string) ($itemAddon->name ?: $addon->name);
+
+                        continue;
+                    }
+
+                    $addonQty = (float) ($itemAddon->quantity ?? 0);
+                    if ($addonQty <= 0) {
+                        continue;
+                    }
+
+                    if ($item->parent_transaction_item_id !== null) {
+                        $parent = $itemsById->get((int) $item->parent_transaction_item_id);
+                        $addonQty *= (int) ($parent?->quantity ?? 0);
+                    }
+
+                    foreach ($recipes as $recipe) {
+                        $ingredientId = (int) $recipe->ingredient_id;
+                        $consumeQty = -1 * $addonQty * (float) $recipe->quantity;
+
+                        if (! array_key_exists($ingredientId, $ingredientTotals)) {
+                            $ingredientTotals[$ingredientId] = 0.0;
+                        }
+
+                        $ingredientTotals[$ingredientId] += $consumeQty;
+                    }
+                }
+            }
+
             $this->applyTransactionHpp($locked);
+
+            $skipped = array_values(array_unique($skipped));
 
             if ($ingredientTotals === []) {
                 $locked->forceFill(['inventory_applied_at' => now()])->save();
 
-                return;
+                return $skipped;
             }
 
             $ingredientCosts = Ingredient::query()
@@ -156,6 +208,8 @@ class InventoryService
             }
 
             $locked->forceFill(['inventory_applied_at' => now()])->save();
+
+            return $skipped;
         });
     }
 
@@ -208,9 +262,11 @@ class InventoryService
         $transaction->loadMissing([
             'transactionItems.variant.recipes.ingredient',
             'transactionItems.product.recipes.ingredient',
+            'transactionItems.itemAddons.addon.recipes.ingredient',
         ]);
 
         $items = collect($transaction->transactionItems);
+        $itemsById = $items->keyBy('id');
 
         foreach ($transaction->transactionItems as $item) {
             if ($item->parent_transaction_item_id === null && $item->product && (bool) $item->product->is_package) {
@@ -237,7 +293,31 @@ class InventoryService
                 $hppUnit += (float) ($recipe->ingredient?->cost_price ?? 0) * (float) $recipe->quantity;
             }
 
-            $hppUnit = round($hppUnit, 2);
+            $addonHppTotal = 0.0;
+
+            foreach ($item->itemAddons ?? [] as $itemAddon) {
+                $addon = $itemAddon->addon ?? null;
+                if (! $addon) {
+                    continue;
+                }
+
+                $addonQty = (float) ($itemAddon->quantity ?? 0);
+                if ($addonQty <= 0) {
+                    continue;
+                }
+
+                if ($item->parent_transaction_item_id !== null) {
+                    $parent = $itemsById->get((int) $item->parent_transaction_item_id);
+                    $addonQty *= (int) ($parent?->quantity ?? 0);
+                }
+
+                foreach ($addon->recipes ?? [] as $recipe) {
+                    $addonHppTotal += (float) ($recipe->ingredient?->cost_price ?? 0) * (float) $recipe->quantity * $addonQty;
+                }
+            }
+
+            $itemQty = max(1, (int) $item->quantity);
+            $hppUnit = round($hppUnit + $addonHppTotal / $itemQty, 2);
 
             $item->update([
                 'hpp_unit' => $hppUnit,
@@ -262,6 +342,22 @@ class InventoryService
             $sum = 0.0;
             foreach ($children as $child) {
                 $sum += (float) ($child->hpp_total ?? 0);
+            }
+
+            foreach ($parent->itemAddons ?? [] as $itemAddon) {
+                $addon = $itemAddon->addon ?? null;
+                if (! $addon) {
+                    continue;
+                }
+
+                $addonQty = (float) ($itemAddon->quantity ?? 0);
+                if ($addonQty <= 0) {
+                    continue;
+                }
+
+                foreach ($addon->recipes ?? [] as $recipe) {
+                    $sum += (float) ($recipe->ingredient?->cost_price ?? 0) * (float) $recipe->quantity * $addonQty;
+                }
             }
 
             $qty = (int) $parent->quantity;

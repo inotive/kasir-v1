@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -35,5 +36,10 @@ class Addon extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'product_addons');
+    }
+
+    public function recipes(): HasMany
+    {
+        return $this->hasMany(AddonRecipe::class);
     }
 }

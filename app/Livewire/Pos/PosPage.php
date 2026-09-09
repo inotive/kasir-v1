@@ -23,7 +23,6 @@ use App\Support\Products\ItemNameFormatter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Component;
 
@@ -944,7 +943,7 @@ class PosPage extends Component
             return null;
         }
 
-        return Storage::disk('public')->url($path);
+        return asset('storage/'.ltrim($path, '/'));
     }
 
     private function populateSimplePackageComponentAddons(ProductVariant $parentVariant): void

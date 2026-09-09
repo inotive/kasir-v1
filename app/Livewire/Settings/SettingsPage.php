@@ -602,7 +602,7 @@ class SettingsPage extends Component
             return null;
         }
 
-        return Storage::disk('public')->url($this->qris_image_path);
+        return asset('storage/'.ltrim($this->qris_image_path, '/'));
     }
 
     public function deleteQrisImage(): void

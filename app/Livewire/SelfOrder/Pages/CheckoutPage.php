@@ -72,7 +72,7 @@ class CheckoutPage extends Component
 
         $s = \App\Models\Setting::current();
         $this->payment_gateway_enabled = (bool) ($s->payment_gateway_enabled ?? true);
-        $this->qris_image_url = $s->qris_image ? \Illuminate\Support\Facades\Storage::disk('public')->url($s->qris_image) : null;
+        $this->qris_image_url = $s->qris_image ? asset('storage/'.ltrim($s->qris_image, '/')) : null;
 
         $this->voucherCodeInput = session('self_order_voucher_code');
         $this->usePoints = (bool) session('self_order_use_points', false);

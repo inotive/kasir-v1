@@ -1278,19 +1278,19 @@
                                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div class="sm:col-span-2">
                                                 <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Metode Bayar</label>
-                                                <div class="grid grid-cols-3 gap-3">
+                                                <div class="grid grid-cols-1 gap-3">
                                                     @foreach ($paymentMethods as $pm)
                                                         @continue(in_array($pm['id'], ['gofood', 'grab_food', 'shopee_food'], true))
                                                         <button 
                                                             type="button"
                                                             wire:click="$set('paymentMethod', '{{ $pm['id'] }}')"
-                                                            class="flex min-h-[92px] flex-col items-center justify-center rounded-xl border p-3 text-center transition-all duration-200 hover:shadow-md
+                                                            class="flex min-h-[64px] w-full flex-row items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200 hover:shadow-md
                                                             {{ $paymentMethod === $pm['id'] 
                                                                 ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-500/20 dark:border-brand-400 dark:bg-brand-900/20 dark:text-brand-300' 
-                                                                : 'border-gray-200 bg-white text-gray-600 hover:border-brand-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-800' 
+                                                                : 'border-gray-200 bg-white text-gray-600 hover:border-brand-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-white/[0.03]' 
                                                             }}"
                                                         >
-                                                            <div class="mb-2 flex h-8 w-8 items-center justify-center rounded-full 
+                                                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full 
                                                                 {{ $paymentMethod === $pm['id'] ? 'bg-brand-100 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' }}">
                                                                 @if($pm['id'] === 'cash')
                                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -1302,7 +1302,10 @@
                                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                                                                 @endif
                                                             </div>
-                                                            <span class="text-xs font-medium">{{ $pm['name'] }}</span>
+                                                            <span class="flex-1 text-sm font-medium">{{ $pm['name'] }}</span>
+                                                            @if ($paymentMethod === $pm['id'])
+                                                                <svg class="h-5 w-5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                                            @endif
                                                         </button>
                                                     @endforeach
                                                 </div>
@@ -1310,13 +1313,19 @@
                                             </div>
 
                                             @if ($paymentMethod === 'qris')
-                                                <div class="sm:col-span-2">
+                                                <div class="space-y-3 sm:col-span-2">
                                                     @if ($this->qrisImageUrl())
-                                                        <div class="flex flex-col items-center rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                                                            <img src="{{ $this->qrisImageUrl() }}" alt="QRIS" class="h-64 w-64 object-contain" />
-                                                            <p class="mt-3 text-sm font-bold text-gray-900 dark:text-white">Rp {{ number_format((int) $total, 0, ',', '.') }}</p>
-                                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Tunjukkan QR kepada pelanggan untuk dipindai</p>
-                                                        </div>
+                                                        <label class="flex cursor-pointer items-center gap-2.5 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                                            <input wire:model.live="showQrisImage" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                                            Tampilkan QR kepada pelanggan
+                                                        </label>
+                                                        @if ($showQrisImage)
+                                                            <div class="flex flex-col items-center rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                                                                <img src="{{ $this->qrisImageUrl() }}" alt="QRIS" class="h-64 w-64 object-contain" />
+                                                                <p class="mt-3 text-sm font-bold text-gray-900 dark:text-white">Rp {{ number_format((int) $total, 0, ',', '.') }}</p>
+                                                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Tunjukkan QR kepada pelanggan untuk dipindai</p>
+                                                            </div>
+                                                        @endif
                                                     @else
                                                         <div class="flex flex-col items-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-center dark:border-gray-700 dark:bg-white/[0.03]">
                                                             <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">QRIS statis belum diupload</p>

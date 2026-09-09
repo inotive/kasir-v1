@@ -178,6 +178,8 @@ class PosPage extends Component
 
     public string $paymentMethod = 'cash';
 
+    public bool $showQrisImage = false;
+
     public ?string $cashReceived = null;
 
     public int $cashChange = 0;
@@ -1782,6 +1784,7 @@ class PosPage extends Component
         $this->resetValidation();
         $this->cashReceived = $this->paymentMethod === 'cash' ? (string) $this->total : null;
         $this->cashChange = 0;
+        $this->showQrisImage = false;
         $this->checkoutStep = 3;
         $this->checkoutModalOpen = true;
         $this->updatedCashReceived();
@@ -2822,6 +2825,11 @@ class PosPage extends Component
     private function buildPrintPayload(int $transactionId): ?array
     {
         return app(PosPrintPayloadService::class)->build($transactionId);
+    }
+
+    public function updatedPaymentMethod(): void
+    {
+        $this->showQrisImage = false;
     }
 
     public function updatedCashReceived(): void

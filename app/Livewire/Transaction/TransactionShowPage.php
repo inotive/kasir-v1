@@ -522,29 +522,21 @@ class TransactionShowPage extends Component
                 return;
             }
 
-            $setting = Setting::current();
-            $quickUsedToday = TransactionEvent::query()
-                ->where('action', 'void')
-                ->where('actor_user_id', auth()->id())
-                ->whereDate('created_at', now()->toDateString())
-                ->whereNull('meta->approved_by_user_id')
-                ->count();
-
-            $needsApproval = $this->needsVoidApproval($actor, $transaction, $setting, (int) $quickUsedToday);
+            // Delete always requires approver PIN: the record is removed
+            // permanently, so the void quick quota/role bypass never applies.
+            $needsApproval = true;
             $approvedByUserId = null;
             $approvalMode = null;
 
-            if ($needsApproval) {
-                $resolved = $this->resolveApprover($validated['approverUserId'] ?? null, (string) ($validated['approverPin'] ?? ''), 'transactions.void.approve');
-                if (! $resolved['ok']) {
-                    $this->addError((string) $resolved['error_field'], (string) $resolved['error_message']);
+            $resolved = $this->resolveApprover($validated['approverUserId'] ?? null, (string) ($validated['approverPin'] ?? ''), 'transactions.void.approve');
+            if (! $resolved['ok']) {
+                $this->addError((string) $resolved['error_field'], (string) $resolved['error_message']);
 
-                    return;
-                }
-
-                $approvedByUserId = (int) $resolved['id'];
-                $approvalMode = (string) $resolved['mode'];
+                return;
             }
+
+            $approvedByUserId = (int) $resolved['id'];
+            $approvalMode = (string) $resolved['mode'];
 
             $inventoryReversed = false;
             if ($transaction->inventory_applied_at) {
@@ -625,7 +617,6 @@ class TransactionShowPage extends Component
 
         $voidNeedsApproval = $user ? $this->needsVoidApproval($user, $transaction, $rules, (int) $voidQuickUsedToday) : false;
         $refundNeedsApproval = $user ? $this->needsRefundApproval($user, $transaction, $rules, (int) $this->refundAmount, (int) $refundQuickUsedToday) : false;
-        $deleteNeedsApproval = $user ? $this->needsVoidApproval($user, $transaction, $rules, (int) $voidQuickUsedToday) : false;
 
         $voidApprovers = collect();
         if ($this->voidModalOpen && $voidNeedsApproval && $user && $user->can('transactions.void')) {
@@ -648,7 +639,7 @@ class TransactionShowPage extends Component
         }
 
         $deleteApprovers = collect();
-        if ($this->deleteModalOpen && $deleteNeedsApproval && $user && $user->can('transactions.void')) {
+        if ($this->deleteModalOpen && $user && $user->can('transactions.void')) {
             $deleteApprovers = User::query()
                 ->permission('transactions.void.approve')
                 ->where('is_active', true)
@@ -681,7 +672,6 @@ class TransactionShowPage extends Component
             'voidQuickUsedToday' => (int) $voidQuickUsedToday,
             'voidNeedsApproval' => (bool) $voidNeedsApproval,
             'refundNeedsApproval' => (bool) $refundNeedsApproval,
-            'deleteNeedsApproval' => (bool) $deleteNeedsApproval,
             'refundTotal' => (int) ($transaction->total ?? 0),
             'correctionRules' => [
                 'void_pending_requires_approval' => (bool) ($rules->corrections_void_pending_requires_approval ?? false),

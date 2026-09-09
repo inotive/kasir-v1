@@ -25,6 +25,9 @@ function makeDeleteActor(array $permissions): User
 
     $user = User::factory()->create();
     $user->assignRole($role);
+    $user->manager_pin = '1234';
+    $user->manager_pin_set_at = now();
+    $user->save();
 
     return $user;
 }
@@ -107,6 +110,7 @@ test('delete paid transaction reverses inventory and removes all records', funct
     Livewire::actingAs($user)
         ->test(TransactionShowPage::class, ['transaction' => $transaction])
         ->set('correctionReason', 'Salah input')
+        ->set('approverPin', '1234')
         ->call('deleteTransaction')
         ->assertHasNoErrors()
         ->assertRedirect(route('transactions.index'));
@@ -149,6 +153,7 @@ test('delete pending transaction without inventory removes records cleanly', fun
     Livewire::actingAs($user)
         ->test(TransactionShowPage::class, ['transaction' => $transaction])
         ->set('correctionReason', 'Batal')
+        ->set('approverPin', '1234')
         ->call('deleteTransaction')
         ->assertHasNoErrors()
         ->assertRedirect(route('transactions.index'));
@@ -158,6 +163,30 @@ test('delete pending transaction without inventory removes records cleanly', fun
         ->where('reference_type', 'transactions')
         ->where('reference_id', $transactionId)
         ->exists())->toBeFalse();
+});
+
+test('delete requires approver PIN even for approvers', function () {
+    $this->seed(RolePermissionSeeder::class);
+    $user = makeDeleteActor(['transactions.details', 'transactions.void', 'transactions.void.approve']);
+
+    $transaction = Transaction::query()->create([
+        'code' => 'TRX-DEL-NOPIN',
+        'external_id' => 'EXT-DEL-NOPIN',
+        'name' => 'Walk-in',
+        'checkout_link' => '',
+        'subtotal' => 5000,
+        'total' => 5000,
+        'payment_method' => 'cash',
+        'payment_status' => 'pending',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(TransactionShowPage::class, ['transaction' => $transaction])
+        ->set('correctionReason', 'Tanpa PIN')
+        ->call('deleteTransaction')
+        ->assertHasErrors(['approverPin']);
+
+    expect(Transaction::query()->whereKey($transaction->id)->exists())->toBeTrue();
 });
 
 test('delete rejects already voided transaction', function () {

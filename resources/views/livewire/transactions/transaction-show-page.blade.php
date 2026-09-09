@@ -15,7 +15,6 @@
     $refundQuickUsedToday = (int) ($refundQuickUsedToday ?? 0);
     $voidNeedsApproval = (bool) ($voidNeedsApproval ?? false);
     $refundNeedsApproval = (bool) ($refundNeedsApproval ?? false);
-    $deleteNeedsApproval = (bool) ($deleteNeedsApproval ?? false);
     $fmtCurrency = fn ($value) => 'Rp'.number_format((float) $value, 0, ',', '.');
 
     $voucherDiscount = (int) ($transaction->voucher_discount_amount ?? 0);
@@ -639,10 +638,9 @@
                         <input wire:model.live="correctionReason" type="text" aria-invalid="{{ $errors->has('correctionReason') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('correctionReason') ? 'error-correctionReason' : '' }}" class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
                         <x-common.input-error for="correctionReason" />
                     </div>
-                    @if ($deleteNeedsApproval ?? false)
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
                             <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Approval (PIN)</p>
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Hapus transaksi memerlukan approval (PIN) sesuai aturan sistem.</p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Hapus transaksi selalu memerlukan approval (PIN) karena data dihapus permanen.</p>
                             <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <div>
                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Approver (Opsional)</label>
@@ -662,7 +660,6 @@
                                 </div>
                             </div>
                         </div>
-                    @endif
                     <div class="flex items-center justify-end gap-2">
                         <button type="button" wire:click="closeDeleteModal" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
                             Batal

@@ -19,6 +19,7 @@ class Member extends Model
         'email_verified_at',
         'verification_token',
         'phone',
+        'address',
         'member_region_id',
         'member_type',
         'points',

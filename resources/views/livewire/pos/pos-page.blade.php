@@ -1278,7 +1278,7 @@
                                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div class="sm:col-span-2">
                                                 <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Metode Bayar</label>
-                                                <div class="grid grid-cols-1 gap-3">
+                                                <div class="grid grid-cols-2 gap-3">
                                                     @foreach ($paymentMethods as $pm)
                                                         @continue(in_array($pm['id'], ['gofood', 'grab_food', 'shopee_food'], true))
                                                         <button 

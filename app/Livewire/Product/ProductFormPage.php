@@ -3,6 +3,7 @@
 namespace App\Livewire\Product;
 
 use App\Models\Addon;
+use App\Models\AddonCategory;
 use App\Models\Category;
 use App\Models\Ingredient;
 use App\Models\PrinterSource;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Session;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -61,6 +63,13 @@ class ProductFormPage extends Component
     public array $complexPackageItems = [];
 
     public array $selectedAddonIds = [];
+
+    #[Session(key: 'product_form.shown_addon_categories')]
+    public array $shownAddonCategoryIds = [];
+
+    public bool $addonPickerOpen = false;
+
+    public array $pickerCategoryIds = [];
 
     protected array $validationAttributes = [
         'name' => 'Nama produk',
@@ -216,6 +225,8 @@ class ProductFormPage extends Component
             ->all();
 
         $this->selectedAddonIds = $product->addons->pluck('id')->map(fn ($id) => (int) $id)->toArray();
+
+        $this->shownAddonCategoryIds = $this->resolveShownAddonCategoryIds();
     }
 
     protected function rules(): array
@@ -443,6 +454,98 @@ class ProductFormPage extends Component
             $this->variantRecipes[$variantKey] = collect($this->variantRecipes[$variantKey])
                 ->reject(fn (array $recipe) => (string) ($recipe['key'] ?? '') === $recipeKey)
                 ->all();
+    }
+
+    public function openAddonPicker(): void
+    {
+        $this->pickerCategoryIds = [];
+        $this->addonPickerOpen = true;
+    }
+
+    public function closeAddonPicker(): void
+    {
+        $this->pickerCategoryIds = [];
+        $this->addonPickerOpen = false;
+    }
+
+    public function togglePickerCategory(int $categoryId): void
+    {
+        if (! AddonCategory::query()->whereKey($categoryId)->exists()) {
+            return;
+        }
+
+        $shown = array_map('intval', (array) $this->shownAddonCategoryIds);
+        if (in_array($categoryId, $shown, true)) {
+            return;
+        }
+
+        $picked = array_map('intval', (array) $this->pickerCategoryIds);
+
+        if (in_array($categoryId, $picked, true)) {
+            $picked = array_values(array_filter($picked, fn (int $id) => $id !== $categoryId));
+        } else {
+            $picked[] = $categoryId;
+        }
+
+        $this->pickerCategoryIds = $picked;
+    }
+
+    public function confirmAddonPicker(): void
+    {
+        $picked = array_values(array_unique(array_map('intval', (array) $this->pickerCategoryIds)));
+
+        if ($picked === []) {
+            return;
+        }
+
+        $validIds = AddonCategory::query()
+            ->whereIn('id', $picked)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $shown = array_map('intval', (array) $this->shownAddonCategoryIds);
+        $this->shownAddonCategoryIds = array_values(array_unique(array_merge($shown, $validIds)));
+
+        $this->pickerCategoryIds = [];
+        $this->addonPickerOpen = false;
+    }
+
+    public function hideAddonCategory(int $categoryId): void
+    {
+        $this->shownAddonCategoryIds = array_values(array_filter(
+            array_map('intval', (array) $this->shownAddonCategoryIds),
+            fn (int $id) => $id !== $categoryId
+        ));
+
+        $categoryAddonIds = Addon::query()
+            ->where('addon_category_id', $categoryId)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($categoryAddonIds !== []) {
+            $this->selectedAddonIds = array_values(array_diff(
+                array_map('intval', (array) $this->selectedAddonIds),
+                $categoryAddonIds
+            ));
+        }
+    }
+
+    protected function resolveShownAddonCategoryIds(): array
+    {
+        $persisted = array_map('intval', (array) $this->shownAddonCategoryIds);
+
+        $selected = array_map('intval', (array) $this->selectedAddonIds);
+        $fromSelected = $selected === []
+            ? []
+            : Addon::query()
+                ->whereIn('id', $selected)
+                ->pluck('addon_category_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+        return array_values(array_unique(array_merge($persisted, $fromSelected)));
     }
 
     public function toggleCategoryAddons(string $categoryName): void
@@ -895,6 +998,22 @@ class ProductFormPage extends Component
             ->get()
             ->groupBy(fn ($a) => $a->addonCategory?->name ?? 'Lainnya');
 
+        $shownAddonCategoryIds = array_values(array_unique(array_map('intval', (array) $this->shownAddonCategoryIds)));
+
+        $existingShownCategoryIds = $shownAddonCategoryIds === []
+            ? []
+            : AddonCategory::query()
+                ->whereIn('id', $shownAddonCategoryIds)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+        $shownAddons = $allAddons->filter(function ($addons) use ($existingShownCategoryIds) {
+            $categoryId = (int) ($addons->first()?->addon_category_id ?? 0);
+
+            return in_array($categoryId, $existingShownCategoryIds, true);
+        });
+
         $hppByVariantKey = [];
 
         foreach ($this->variants as $variant) {
@@ -943,6 +1062,7 @@ class ProductFormPage extends Component
             'ingredientUnits' => $ingredientUnits,
             'ingredientCosts' => $ingredientCosts,
             'allAddons' => $allAddons,
+            'shownAddons' => $shownAddons,
         ])->layout('layouts.app', ['title' => $this->title]);
     }
 }

@@ -18,6 +18,10 @@
         :variant-recipes="$variantRecipes"
         :hpp-by-variant-key="$hppByVariantKey"
         :all-addons="$allAddons"
+        :shown-addons="$shownAddons"
+        :shown-addon-category-ids="$shownAddonCategoryIds"
+        :addon-picker-open="$addonPickerOpen"
+        :picker-category-ids="$pickerCategoryIds"
         :selected-addon-ids="$selectedAddonIds"
     />
 </div>

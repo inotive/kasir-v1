@@ -17,6 +17,10 @@
     'variantRecipes' => [],
     'hppByVariantKey' => [],
     'allAddons' => [],
+    'shownAddons' => [],
+    'shownAddonCategoryIds' => [],
+    'addonPickerOpen' => false,
+    'pickerCategoryIds' => [],
     'selectedAddonIds' => [],
 ])
 
@@ -139,11 +143,12 @@
             </div>
         </div>
 
+        @if ($isPackage)
         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
                 <div>
                     <h3 class="text-lg font-medium text-gray-800 dark:text-white">Isi Paket</h3>
-                    @if ($isPackage && $packageType === 'complex')
+                    @if ($packageType === 'complex')
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Pilih produk yang termasuk di dalam paket. Varian dipilih saat input di POS.</p>
                     @else
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Pilih varian menu yang termasuk di dalam paket.</p>
@@ -154,7 +159,6 @@
                         type="button"
                         wire:click="addComplexPackageItem"
                         class="shadow-theme-xs inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-600"
-                        @disabled(! $isPackage)
                     >
                         Tambah Item
                     </button>
@@ -163,7 +167,6 @@
                         type="button"
                         wire:click="addPackageItem"
                         class="shadow-theme-xs inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-600"
-                        @disabled(! $isPackage)
                     >
                         Tambah Item
                     </button>
@@ -174,138 +177,114 @@
                 <x-common.input-error for="packageItems" class="text-xs text-error-600" />
                 <x-common.input-error for="complexPackageItems" class="text-xs text-error-600" />
 
-                @if ($isPackage)
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Tipe Paket</label>
-                            <div class="relative z-20 bg-transparent">
-                                <select
-                                    wire:model.live="packageType"
-                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pr-11 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-                                >
-                                    <option value="simple">Paket Simpel</option>
-                                    <option value="complex">Paket Kompleks</option>
-                                </select>
-                                <span class="pointer-events-none absolute top-1/2 right-4 z-30 -translate-y-1/2 text-gray-700 dark:text-gray-400">
-                                    <svg class="stroke-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M4.79175 7.396L10.0001 12.6043L15.2084 7.396" stroke="" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                    </svg>
-                                </span>
-                            </div>
-                            <x-common.input-error for="packageType" />
-                        </div>
-                    </div>
-
-                    <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
-                        <table class="min-w-full">
-                            <thead>
-                                <tr class="bg-gray-50 dark:bg-gray-900">
-                                    @if ($packageType === 'complex')
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Produk Komponen</th>
-                                    @else
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Varian Komponen</th>
-                                    @endif
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Qty</th>
-                                    @if ($packageType === 'complex')
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Pecah di POS</th>
-                                    @endif
-                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr class="bg-gray-50 dark:bg-gray-900">
                                 @if ($packageType === 'complex')
-                                    @foreach ($complexPackageItems as $index => $row)
-                                        @php
-                                            $rowKey = (string) ($row['key'] ?? $index);
-                                        @endphp
-                                        <tr wire:key="complex-package-item-row-{{ $rowKey }}" class="bg-white dark:bg-gray-950/30">
-                                            <td class="px-4 py-3 align-top">
-                                                <select
-                                                    wire:model.live="complexPackageItems.{{ $index }}.component_product_id"
-                                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                                >
-                                                    <option value="">Pilih produk</option>
-                                                    @foreach ($componentProducts as $product)
-                                                        <option value="{{ $product->id }}">{{ $product->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <x-common.input-error :for="'complexPackageItems.'.$index.'.component_product_id'" />
-                                            </td>
-                                            <td class="px-4 py-3 align-top">
-                                                <input
-                                                    wire:model.live="complexPackageItems.{{ $index }}.quantity"
-                                                    type="number"
-                                                    min="1"
-                                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-                                                    placeholder="1"
-                                                />
-                                                <x-common.input-error :for="'complexPackageItems.'.$index.'.quantity'" />
-                                            </td>
-                                            <td class="px-4 py-3 align-top">
-                                                <label class="inline-flex items-center gap-2">
-                                                    <input wire:model.live="complexPackageItems.{{ $index }}.is_splitable" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900" />
-                                                    <span class="text-sm text-gray-700 dark:text-gray-300">Ya</span>
-                                                </label>
-                                            </td>
-                                            <td class="px-4 py-3 align-top text-right">
-                                                <button
-                                                    type="button"
-                                                    wire:click="removeComplexPackageItem('{{ $rowKey }}')"
-                                                    class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]"
-                                                >
-                                                    Hapus
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    @endforeach
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Produk Komponen</th>
                                 @else
-                                    @foreach ($packageItems as $index => $row)
-                                        @php
-                                            $rowKey = (string) ($row['key'] ?? $index);
-                                        @endphp
-                                        <tr wire:key="package-item-row-{{ $rowKey }}" class="bg-white dark:bg-gray-950/30">
-                                            <td class="px-4 py-3 align-top">
-                                                <select
-                                                    wire:model.live="packageItems.{{ $index }}.component_variant_id"
-                                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                                >
-                                                    <option value="">Pilih varian</option>
-                                                    @foreach ($componentVariants as $variant)
-                                                        <option value="{{ $variant->id }}">{{ $variant->product->name }} - {{ $variant->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <x-common.input-error :for="'packageItems.'.$index.'.component_variant_id'" />
-                                            </td>
-                                            <td class="px-4 py-3 align-top">
-                                                <input
-                                                    wire:model.live="packageItems.{{ $index }}.quantity"
-                                                    type="number"
-                                                    min="1"
-                                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-                                                    placeholder="1"
-                                                />
-                                                <x-common.input-error :for="'packageItems.'.$index.'.quantity'" />
-                                            </td>
-                                            <td class="px-4 py-3 align-top text-right">
-                                                <button
-                                                    type="button"
-                                                    wire:click="removePackageItem('{{ $rowKey }}')"
-                                                    class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]"
-                                                >
-                                                    Hapus
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    @endforeach
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Varian Komponen</th>
                                 @endif
-                            </tbody>
-                        </table>
-                    </div>
-                @else
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Aktifkan opsi Paket untuk mengatur isi paket.</p>
-                @endif
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Qty</th>
+                                @if ($packageType === 'complex')
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400">Pecah di POS</th>
+                                @endif
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                            @if ($packageType === 'complex')
+                                @foreach ($complexPackageItems as $index => $row)
+                                    @php
+                                        $rowKey = (string) ($row['key'] ?? $index);
+                                    @endphp
+                                    <tr wire:key="complex-package-item-row-{{ $rowKey }}" class="bg-white dark:bg-gray-950/30">
+                                        <td class="px-4 py-3 align-top">
+                                            <select
+                                                wire:model.live="complexPackageItems.{{ $index }}.component_product_id"
+                                                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                            >
+                                                <option value="">Pilih produk</option>
+                                                @foreach ($componentProducts as $product)
+                                                    <option value="{{ $product->id }}">{{ $product->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <x-common.input-error :for="'complexPackageItems.'.$index.'.component_product_id'" />
+                                        </td>
+                                        <td class="px-4 py-3 align-top">
+                                            <input
+                                                wire:model.live="complexPackageItems.{{ $index }}.quantity"
+                                                type="number"
+                                                min="1"
+                                                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+                                                placeholder="1"
+                                            />
+                                            <x-common.input-error :for="'complexPackageItems.'.$index.'.quantity'" />
+                                        </td>
+                                        <td class="px-4 py-3 align-top">
+                                            <label class="inline-flex items-center gap-2">
+                                                <input wire:model.live="complexPackageItems.{{ $index }}.is_splitable" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900" />
+                                                <span class="text-sm text-gray-700 dark:text-gray-300">Ya</span>
+                                            </label>
+                                        </td>
+                                        <td class="px-4 py-3 align-top text-right">
+                                            <button
+                                                type="button"
+                                                wire:click="removeComplexPackageItem('{{ $rowKey }}')"
+                                                class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]"
+                                            >
+                                                Hapus
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @else
+                                @foreach ($packageItems as $index => $row)
+                                    @php
+                                        $rowKey = (string) ($row['key'] ?? $index);
+                                    @endphp
+                                    <tr wire:key="package-item-row-{{ $rowKey }}" class="bg-white dark:bg-gray-950/30">
+                                        <td class="px-4 py-3 align-top">
+                                            <select
+                                                wire:model.live="packageItems.{{ $index }}.component_variant_id"
+                                                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                            >
+                                                <option value="">Pilih varian</option>
+                                                @foreach ($componentVariants as $variant)
+                                                    <option value="{{ $variant->id }}">{{ $variant->product->name }} - {{ $variant->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <x-common.input-error :for="'packageItems.'.$index.'.component_variant_id'" />
+                                        </td>
+                                        <td class="px-4 py-3 align-top">
+                                            <input
+                                                wire:model.live="packageItems.{{ $index }}.quantity"
+                                                type="number"
+                                                min="1"
+                                                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+                                                placeholder="1"
+                                            />
+                                            <x-common.input-error :for="'packageItems.'.$index.'.quantity'" />
+                                        </td>
+                                        <td class="px-4 py-3 align-top text-right">
+                                            <button
+                                                type="button"
+                                                wire:click="removePackageItem('{{ $rowKey }}')"
+                                                class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]"
+                                            >
+                                                Hapus
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
+        @endif
 
         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
@@ -411,7 +390,7 @@
                                 @php
                                     $recipes = (array) ($variantRecipes[$variantKey] ?? []);
                                 @endphp
-                                @if (! $isPackage)
+                                @if (! $isPackage && count($recipes) > 0)
                                     <tr wire:key="variant-recipes-{{ $variantKey }}" class="bg-gray-50/50 dark:bg-gray-950/10">
                                         <td colspan="7" class="px-4 py-4">
                                             <div class="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950/30">
@@ -510,6 +489,19 @@
                                         </td>
                                     </tr>
                                 @endif
+                                @if (! $isPackage && count($recipes) === 0)
+                                    <tr wire:key="variant-recipes-empty-{{ $variantKey }}">
+                                        <td colspan="7" class="px-4 py-2">
+                                            <button
+                                                type="button"
+                                                wire:click="addRecipe('{{ $variantKey }}')"
+                                                class="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                                            >
+                                                + Tambah Bahan
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>
@@ -593,7 +585,7 @@
                                     </div>
                                 </div>
 
-                                @if (! $isPackage)
+                                @if (! $isPackage && count($recipes) > 0)
                                     <div class="rounded-2xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-950/30">
                                         <div class="flex items-start justify-between gap-3">
                                             <div>
@@ -691,6 +683,15 @@
                                         </div>
                                     </div>
                                 @endif
+                                @if (! $isPackage && count($recipes) === 0)
+                                    <button
+                                        type="button"
+                                        wire:click="addRecipe('{{ $variantKey }}')"
+                                        class="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                                    >
+                                        + Tambah Bahan
+                                    </button>
+                                @endif
                             </div>
                         </div>
                     @empty
@@ -703,22 +704,40 @@
         </div>
 
         @if (! $isPackage)
+        @if ($allAddons->isEmpty())
         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
                 <h3 class="text-lg font-medium text-gray-800 dark:text-white">Add-on Produk</h3>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Pilih add-on yang tersedia untuk produk ini.</p>
             </div>
             <div class="p-4 sm:p-6">
-                @if ($allAddons->isEmpty())
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada add-on yang tersedia. <a href="{{ route('addons.index') }}" class="text-brand-500 hover:underline" wire:navigate>Buat add-on</a></p>
-                @else
+                <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada add-on yang tersedia. <a href="{{ route('addons.index') }}" class="text-brand-500 hover:underline" wire:navigate>Buat add-on</a></p>
+            </div>
+        </div>
+        @elseif ($shownAddons->isNotEmpty())
+        <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+            <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+                <div>
+                    <h3 class="text-lg font-medium text-gray-800 dark:text-white">Add-on Produk</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Pilih add-on yang tersedia untuk produk ini.</p>
+                </div>
+                <button
+                    type="button"
+                    wire:click="openAddonPicker"
+                    class="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                >
+                    + Tambah Add-on
+                </button>
+            </div>
+            <div class="p-4 sm:p-6">
                     <div class="space-y-4">
-                        @foreach ($allAddons as $categoryName => $addons)
+                        @foreach ($shownAddons as $categoryName => $addons)
                             @php
                                 $addonIds = $addons->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
                                 $selectedCount = count(array_intersect($selectedAddonIds, $addonIds));
                                 $totalCount = count($addonIds);
                                 $allSelected = $selectedCount === $totalCount;
+                                $shownCategoryId = (int) ($addons->first()?->addon_category_id ?? 0);
                             @endphp
                             <div class="rounded-xl border border-gray-200 dark:border-gray-700">
                                 <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-2.5 dark:border-gray-700 dark:bg-gray-800/50">
@@ -726,13 +745,22 @@
                                         <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ $categoryName }}</span>
                                         <span class="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400">{{ $selectedCount }}/{{ $totalCount }}</span>
                                     </div>
-                                    <button
-                                        type="button"
-                                        wire:click="toggleCategoryAddons('{{ addslashes($categoryName) }}')"
-                                        class="text-xs font-medium transition {{ $allSelected ? 'text-brand-600 hover:text-brand-700 dark:text-brand-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300' }}"
-                                    >
-                                        {{ $allSelected ? 'Batal Pilih' : 'Pilih Semua' }}
-                                    </button>
+                                    <div class="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            wire:click="toggleCategoryAddons('{{ addslashes($categoryName) }}')"
+                                            class="text-xs font-medium transition {{ $allSelected ? 'text-brand-600 hover:text-brand-700 dark:text-brand-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300' }}"
+                                        >
+                                            {{ $allSelected ? 'Batal Pilih' : 'Pilih Semua' }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            wire:click="hideAddonCategory({{ $shownCategoryId }})"
+                                            class="text-xs font-medium text-gray-400 hover:text-error-600 dark:text-gray-500 dark:hover:text-error-400"
+                                        >
+                                            Hapus
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="flex flex-wrap gap-2 p-3">
                                     @foreach ($addons as $addon)
@@ -760,9 +788,76 @@
                             </div>
                         @endforeach
                     </div>
-                @endif
             </div>
         </div>
+        @else
+        <button
+            type="button"
+            wire:click="openAddonPicker"
+            class="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+        >
+            + Tambah Add-on
+        </button>
+        @endif
+        @endif
+
+        @if ($addonPickerOpen)
+            <div class="fixed inset-0 z-[100000] flex items-center justify-center p-4" aria-modal="true" role="dialog">
+                <div class="absolute inset-0 bg-black/50" wire:click="closeAddonPicker"></div>
+                <div class="relative w-full max-w-xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
+                    <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">Pilih Kategori</h3>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Pilih kategori untuk menampilkan add-on-nya.</p>
+                        </div>
+                        <button type="button" wire:click="closeAddonPicker" class="text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
+                            Tutup
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">
+                        @forelse ($allAddons as $categoryName => $addons)
+                            @php
+                                $pickerCategoryId = (int) ($addons->first()?->addon_category_id ?? 0);
+                                $alreadyShown = in_array($pickerCategoryId, array_map('intval', (array) $shownAddonCategoryIds), true);
+                                $pickerSelected = in_array($pickerCategoryId, array_map('intval', (array) $pickerCategoryIds), true);
+                            @endphp
+                            @if ($alreadyShown)
+                                <div class="rounded-xl border-2 border-brand-500 bg-brand-500/5 px-4 py-4 dark:bg-brand-500/10">
+                                    <span class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ $categoryName }}</span>
+                                    <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">Ditampilkan</span>
+                                </div>
+                            @else
+                                <button
+                                    type="button"
+                                    wire:click="togglePickerCategory({{ $pickerCategoryId }})"
+                                    class="rounded-xl border-2 px-4 py-4 text-left transition {{ $pickerSelected ? 'border-brand-500 bg-brand-500 text-white shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600' }}"
+                                >
+                                    <span class="flex items-center gap-2 text-sm font-semibold {{ $pickerSelected ? '' : 'text-gray-800 dark:text-white/90' }}">
+                                        @if ($pickerSelected)
+                                            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                        @endif
+                                        {{ $categoryName }}
+                                    </span>
+                                    <span class="mt-1 block text-xs {{ $pickerSelected ? 'opacity-80' : 'text-gray-500 dark:text-gray-400' }}">{{ $addons->count() }} add-on</span>
+                                </button>
+                            @endif
+                        @empty
+                            <p class="text-sm text-gray-500 sm:col-span-2 dark:text-gray-400">Belum ada add-on yang tersedia. <a href="{{ route('addons.index') }}" class="text-brand-500 hover:underline" wire:navigate>Buat add-on</a></p>
+                        @endforelse
+                    </div>
+                    @php
+                        $pickerCount = count((array) $pickerCategoryIds);
+                    @endphp
+                    <div class="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4 dark:border-gray-800">
+                        <button type="button" wire:click="closeAddonPicker" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                            Batal
+                        </button>
+                        <button type="button" wire:click="confirmAddonPicker" @disabled($pickerCount === 0) class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50">
+                            Tambah{{ $pickerCount > 0 ? ' ('.$pickerCount.')' : '' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
         @endif
 
         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">

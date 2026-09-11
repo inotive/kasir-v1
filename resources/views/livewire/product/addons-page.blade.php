@@ -202,6 +202,86 @@
                                 <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $formIsAvailable ? 'translate-x-6' : 'translate-x-1' }}"></span>
                             </button>
                         </div>
+                        <div class="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950/30">
+                            <div class="flex flex-col gap-2 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800">
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Bahan Add-on</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Atur bahan baku untuk menghitung HPP dan pemakaian stok.</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="text-right">
+                                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Total HPP</p>
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Rp{{ number_format((float) ($formHpp ?? 0), 0, ',', '.') }}</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        wire:click="addFormRecipe"
+                                        class="shadow-theme-xs inline-flex items-center justify-center rounded-lg bg-brand-500 px-3 py-2 text-xs font-medium text-white transition hover:bg-brand-600"
+                                    >
+                                        Tambah Bahan
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="space-y-3 p-4">
+                                @forelse ($formRecipes as $recipeIndex => $recipe)
+                                    @php
+                                        $recipeKey = (string) ($recipe['key'] ?? $recipeIndex);
+                                        $recipeIngredientId = (int) ($recipe['ingredient_id'] ?? 0);
+                                        $recipeUnit = (string) ($ingredientUnits[$recipeIngredientId] ?? '');
+                                        $recipeUnitCost = (float) ($ingredientCosts[$recipeIngredientId] ?? 0);
+                                        $recipeQty = (float) (\App\Support\Number\QuantityParser::parse($recipe['quantity'] ?? null) ?? 0);
+                                        $recipeSubtotal = $recipeUnitCost * $recipeQty;
+                                    @endphp
+                                    <div wire:key="addon-recipe-row-{{ $recipeKey }}" class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-12">
+                                            <div class="sm:col-span-6">
+                                                <label class="mb-1 block text-[11px] font-medium text-gray-600 dark:text-gray-400">Bahan Baku</label>
+                                                <select
+                                                    wire:model.live="formRecipes.{{ $recipeIndex }}.ingredient_id"
+                                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                                >
+                                                    <option value="">Pilih bahan</option>
+                                                    @foreach ($ingredients as $ingredient)
+                                                        <option value="{{ $ingredient->id }}">{{ $ingredient->name }} ({{ $ingredient->unit }})</option>
+                                                    @endforeach
+                                                </select>
+                                                <x-common.input-error :for="'formRecipes.'.$recipeIndex.'.ingredient_id'" />
+                                            </div>
+                                            <div class="sm:col-span-4">
+                                                <label class="mb-1 block text-[11px] font-medium text-gray-600 dark:text-gray-400">Qty / Porsi{{ $recipeUnit !== '' ? ' ('.$recipeUnit.')' : '' }}</label>
+                                                <input
+                                                    wire:model.live.debounce.200ms="formRecipes.{{ $recipeIndex }}.quantity"
+                                                    type="text"
+                                                    inputmode="decimal"
+                                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                                    placeholder="0"
+                                                />
+                                                <x-common.input-error :for="'formRecipes.'.$recipeIndex.'.quantity'" />
+                                            </div>
+                                            <div class="flex items-end sm:col-span-2">
+                                                <button
+                                                    type="button"
+                                                    wire:click="removeFormRecipe('{{ $recipeKey }}')"
+                                                    class="shadow-theme-xs inline-flex h-10 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]"
+                                                >
+                                                    Hapus
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                            <p>HPP/Unit: Rp{{ number_format($recipeUnitCost, 0, ',', '.') }}</p>
+                                            <p>Subtotal: Rp{{ number_format((float) round($recipeSubtotal), 0, ',', '.') }}</p>
+                                        </div>
+                                        @if ($recipeIngredientId > 0 && $recipeUnitCost <= 0)
+                                            <p class="mt-1 text-xs font-medium text-warning-700 dark:text-warning-400">Harga bahan belum diset. Isi HPP/Unit di menu Inventory → Bahan Baku.</p>
+                                        @endif
+                                    </div>
+                                @empty
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">Resep add-on ini belum diatur. Stok tidak akan berkurang saat add-on dipesan.</p>
+                                @endforelse
+                                <x-common.input-error for="formRecipes" />
+                            </div>
+                        </div>
                         <div class="flex items-center justify-end gap-2 pt-2">
                             <button type="button" wire:click="closeAddonModal" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
                                 Batal

@@ -63,9 +63,49 @@ class ProductFormPage extends Component
     public array $selectedAddonIds = [];
 
     protected array $validationAttributes = [
+        'name' => 'Nama produk',
+        'description' => 'Deskripsi',
+        'categoryId' => 'Kategori',
+        'printerSourceId' => 'Sumber printer',
+        'packageType' => 'Tipe paket',
+        'image' => 'Gambar produk',
+        'variants' => 'Varian',
+        'variants.*.id' => 'Varian',
+        'variants.*.key' => 'Varian',
+        'variants.*.name' => 'Nama varian',
+        'variants.*.price' => 'Harga varian',
+        'variants.*.percent' => 'Diskon varian',
+        'variantRecipes' => 'Resep varian',
         'variantRecipes.*.*.ingredient_id' => 'Bahan baku',
         'variantRecipes.*.*.quantity' => 'Qty / porsi',
+        'packageItems' => 'Isi paket',
+        'packageItems.*.component_variant_id' => 'Isi paket',
+        'packageItems.*.quantity' => 'Qty isi paket',
+        'complexPackageItems' => 'Isi paket',
+        'complexPackageItems.*.component_product_id' => 'Isi paket',
+        'complexPackageItems.*.quantity' => 'Qty isi paket',
+        'complexPackageItems.*.is_splitable' => 'Opsi pisah isi paket',
     ];
+
+    protected function messages(): array
+    {
+        return [
+            'required' => ':attribute wajib diisi.',
+            'required_if' => ':attribute wajib diisi.',
+            'string' => ':attribute harus berupa teks.',
+            'max.string' => ':attribute maksimal :max karakter.',
+            'max.file' => ':attribute maksimal :max kilobyte.',
+            'integer' => ':attribute harus berupa angka.',
+            'min.numeric' => ':attribute minimal :min.',
+            'min.array' => ':attribute minimal :min item.',
+            'boolean' => ':attribute tidak valid.',
+            'array' => ':attribute tidak valid.',
+            'image' => ':attribute harus berupa gambar.',
+            'exists' => ':attribute yang dipilih tidak valid.',
+            'in' => ':attribute yang dipilih tidak valid.',
+            'distinct' => ':attribute tidak boleh duplikat.',
+        ];
+    }
 
     private function kitchenPrinterSourcesQuery()
     {
@@ -180,9 +220,7 @@ class ProductFormPage extends Component
 
     protected function rules(): array
     {
-        $imageRules = $this->productId
-            ? ['nullable', 'image', 'max:2048']
-            : ['required', 'image', 'max:2048'];
+        $imageRules = ['nullable', 'image', 'max:2048'];
 
         $hasKitchenSources = $this->kitchenPrinterSourcesQuery()->exists();
         $kitchenExistsRule = Rule::exists('printer_sources', 'id')
@@ -289,6 +327,10 @@ class ProductFormPage extends Component
 
     public function updatedIsPackage(bool $value): void
     {
+        if ($value) {
+            $this->selectedAddonIds = [];
+        }
+
         if (! $value) {
             $this->packageItems = [];
             $this->complexPackageItems = [];
@@ -470,7 +512,7 @@ class ProductFormPage extends Component
                     $this->productId = (int) $product->id;
                 }
 
-                $product->addons()->sync($this->selectedAddonIds);
+                $product->addons()->sync($isPackage ? [] : $this->selectedAddonIds);
 
                 $keptVariantIds = [];
                 $variantKeyToId = [];

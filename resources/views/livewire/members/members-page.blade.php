@@ -65,6 +65,10 @@
                                                     <x-common.input-error for="editingPhone" />
                                                 </div>
                                             </div>
+                                            <div>
+                                                <textarea wire:model.live="editingAddress" rows="2" placeholder="Alamat" aria-invalid="{{ $errors->has('editingAddress') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('editingAddress') ? 'error-editingAddress' : '' }}" class="dark:bg-dark-900 shadow-theme-xs w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"></textarea>
+                                                <x-common.input-error for="editingAddress" />
+                                            </div>
                                         @else
                                             <p class="text-sm text-gray-500 dark:text-gray-400">-</p>
                                         @endif
@@ -227,6 +231,11 @@
                                 @endforeach
                             </select>
                             <x-common.input-error for="memberRegionId" />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Alamat</label>
+                            <textarea wire:model.live="address" rows="3" aria-invalid="{{ $errors->has('address') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('address') ? 'error-address' : '' }}" class="dark:bg-dark-900 shadow-theme-xs w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" placeholder="Jalan, nomor, patokan"></textarea>
+                            <x-common.input-error for="address" />
                         </div>
                         <div class="sm:col-span-2">
                             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Poin</label>

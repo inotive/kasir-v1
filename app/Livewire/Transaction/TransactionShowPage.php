@@ -11,6 +11,7 @@ use App\Services\Printing\PosPrintPayloadService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -23,6 +24,8 @@ class TransactionShowPage extends Component
     public bool $voidModalOpen = false;
 
     public bool $refundModalOpen = false;
+
+    public bool $deleteModalOpen = false;
 
     public string $correctionReason = '';
 
@@ -197,7 +200,12 @@ class TransactionShowPage extends Component
             ->findOrFail($this->transactionId);
 
         try {
-            $inventory->applyTransaction($transaction);
+            $skipped = $inventory->applyTransaction($transaction);
+            $this->dispatch('toast', type: 'success', message: 'Stok berhasil diterapkan.');
+
+            if ($skipped !== []) {
+                $this->dispatch('toast', type: 'warning', message: 'Tanpa pengurangan (resep belum diatur): '.implode(', ', $skipped));
+            }
         } catch (ValidationException $e) {
             $message = (string) ($e->errors()['inventory'][0] ?? 'Gagal memproses inventory.');
             $this->addError('inventory', $message);
@@ -239,6 +247,23 @@ class TransactionShowPage extends Component
     public function closeRefundModal(): void
     {
         $this->refundModalOpen = false;
+        $this->resetValidation();
+    }
+
+    public function openDeleteModal(): void
+    {
+        $this->authorize('transactions.void');
+
+        $this->correctionReason = '';
+        $this->approverUserId = null;
+        $this->approverPin = '';
+        $this->resetValidation();
+        $this->deleteModalOpen = true;
+    }
+
+    public function closeDeleteModal(): void
+    {
+        $this->deleteModalOpen = false;
         $this->resetValidation();
     }
 
@@ -466,6 +491,86 @@ class TransactionShowPage extends Component
         }
     }
 
+    public function deleteTransaction(InventoryService $inventory): void
+    {
+        $this->resetErrorBag();
+
+        $validated = $this->validate([
+            'correctionReason' => ['required', 'string', 'max:255'],
+            'approverUserId' => ['nullable', 'integer'],
+            'approverPin' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $deleted = false;
+
+        DB::transaction(function () use ($validated, $inventory, &$deleted): void {
+            $actor = auth()->user();
+            if (! $actor || ! $actor->can('transactions.void')) {
+                $this->addError('correctionReason', 'Anda tidak punya akses untuk menghapus transaksi.');
+
+                return;
+            }
+
+            $transaction = Transaction::query()
+                ->lockForUpdate()
+                ->with(['transactionItems'])
+                ->findOrFail($this->transactionId);
+
+            if (in_array((string) $transaction->payment_status, ['voided', 'refunded'], true)) {
+                $this->addError('correctionReason', 'Transaksi sudah dikoreksi.');
+
+                return;
+            }
+
+            // Delete always requires approver PIN: the record is removed
+            // permanently, so the void quick quota/role bypass never applies.
+            $needsApproval = true;
+            $approvedByUserId = null;
+            $approvalMode = null;
+
+            $resolved = $this->resolveApprover($validated['approverUserId'] ?? null, (string) ($validated['approverPin'] ?? ''), 'transactions.void.approve');
+            if (! $resolved['ok']) {
+                $this->addError((string) $resolved['error_field'], (string) $resolved['error_message']);
+
+                return;
+            }
+
+            $approvedByUserId = (int) $resolved['id'];
+            $approvalMode = (string) $resolved['mode'];
+
+            $inventoryReversed = false;
+            if ($transaction->inventory_applied_at) {
+                $inventory->reverseTransaction($transaction, 'Reversal hapus transaksi '.$transaction->code);
+                $inventoryReversed = true;
+            }
+
+            Log::info('Transaction deleted.', [
+                'transaction_id' => (int) $transaction->id,
+                'code' => (string) $transaction->code,
+                'channel' => (string) ($transaction->channel ?? ''),
+                'previous_payment_status' => (string) $transaction->payment_status,
+                'total' => (int) ($transaction->total ?? 0),
+                'item_count' => $transaction->transactionItems->count(),
+                'reason' => $validated['correctionReason'],
+                'actor_user_id' => auth()->id(),
+                'approval_required' => $needsApproval,
+                'approved_by_user_id' => $approvedByUserId,
+                'approval_mode' => $approvalMode,
+                'inventory_reversed' => $inventoryReversed,
+            ]);
+
+            $transaction->delete();
+
+            $deleted = true;
+        });
+
+        if ($deleted) {
+            $this->dispatch('toast', type: 'success', message: 'Transaksi berhasil dihapus.');
+
+            $this->redirectRoute('transactions.index', navigate: true);
+        }
+    }
+
     public function mount(Transaction $transaction): void
     {
         $this->authorize('transactions.details');
@@ -533,6 +638,16 @@ class TransactionShowPage extends Component
                 ->get(['id', 'name', 'manager_pin_set_at']);
         }
 
+        $deleteApprovers = collect();
+        if ($this->deleteModalOpen && $user && $user->can('transactions.void')) {
+            $deleteApprovers = User::query()
+                ->permission('transactions.void.approve')
+                ->where('is_active', true)
+                ->whereNotNull('manager_pin')
+                ->orderBy('name')
+                ->get(['id', 'name', 'manager_pin_set_at']);
+        }
+
         $approvedIds = collect($transaction->events)
             ->map(fn ($e) => $e->meta['approved_by_user_id'] ?? null)
             ->filter()
@@ -551,11 +666,13 @@ class TransactionShowPage extends Component
             'transaction' => $transaction,
             'voidApprovers' => $voidApprovers,
             'refundApprovers' => $refundApprovers,
+            'deleteApprovers' => $deleteApprovers,
             'approvedBy' => $approvedBy,
             'refundQuickUsedToday' => (int) $refundQuickUsedToday,
             'voidQuickUsedToday' => (int) $voidQuickUsedToday,
             'voidNeedsApproval' => (bool) $voidNeedsApproval,
             'refundNeedsApproval' => (bool) $refundNeedsApproval,
+            'refundTotal' => (int) ($transaction->total ?? 0),
             'correctionRules' => [
                 'void_pending_requires_approval' => (bool) ($rules->corrections_void_pending_requires_approval ?? false),
                 'void_quick_max_count_per_day' => (int) ($rules->corrections_void_quick_max_count_per_day ?? 0),

@@ -26,6 +26,8 @@ class MembersPage extends Component
 
     public ?string $phone = null;
 
+    public ?string $address = null;
+
     public ?string $memberRegionId = null;
 
     public ?string $province = null;
@@ -42,6 +44,8 @@ class MembersPage extends Component
 
     public ?string $editingPhone = null;
 
+    public ?string $editingAddress = null;
+
     public ?string $editingMemberRegionId = null;
 
     public ?string $editingProvince = null;
@@ -49,6 +53,34 @@ class MembersPage extends Component
     public ?string $editingRegency = null;
 
     public ?string $editingPoints = null;
+
+    protected array $validationAttributes = [
+        'name' => 'Nama',
+        'email' => 'Email',
+        'phone' => 'Telepon',
+        'address' => 'Alamat',
+        'memberRegionId' => 'Kecamatan',
+        'points' => 'Poin',
+        'editingName' => 'Nama',
+        'editingEmail' => 'Email',
+        'editingPhone' => 'Telepon',
+        'editingAddress' => 'Alamat',
+        'editingMemberRegionId' => 'Kecamatan',
+        'editingPoints' => 'Poin',
+    ];
+
+    protected function messages(): array
+    {
+        return [
+            'required' => ':attribute wajib diisi.',
+            'string' => ':attribute harus berupa teks.',
+            'email' => ':attribute harus berupa email yang valid.',
+            'max.string' => ':attribute maksimal :max karakter.',
+            'integer' => ':attribute harus berupa angka.',
+            'min.numeric' => ':attribute minimal :min.',
+            'exists' => ':attribute yang dipilih tidak valid.',
+        ];
+    }
 
     public function mount(): void
     {
@@ -65,7 +97,7 @@ class MembersPage extends Component
         $this->authorizePermission('members.create');
         $this->authorizePermission('members.pii.view');
 
-        $this->reset(['name', 'email', 'phone', 'memberRegionId', 'province', 'regency', 'points']);
+        $this->reset(['name', 'email', 'phone', 'address', 'memberRegionId', 'province', 'regency', 'points']);
         $this->resetValidation();
         $this->createMemberModalOpen = true;
     }
@@ -126,6 +158,7 @@ class MembersPage extends Component
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Tenant::uniqueRule('members', 'email')],
             'phone' => ['nullable', 'string', 'max:50', Tenant::uniqueRule('members', 'phone')],
+            'address' => ['nullable', 'string', 'max:2000'],
             'memberRegionId' => ['nullable', 'integer', 'exists:member_regions,id'],
             'points' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -134,11 +167,12 @@ class MembersPage extends Component
             'name' => $validated['name'],
             'email' => $validated['email'] !== '' ? $validated['email'] : null,
             'phone' => $validated['phone'] !== '' ? $validated['phone'] : null,
+            'address' => trim((string) ($validated['address'] ?? '')) !== '' ? trim((string) $validated['address']) : null,
             'member_region_id' => $validated['memberRegionId'] === null || $validated['memberRegionId'] === '' ? null : (int) $validated['memberRegionId'],
             'points' => $validated['points'] === null || $validated['points'] === '' ? 0 : (int) $validated['points'],
         ]);
 
-        $this->reset(['name', 'email', 'phone', 'memberRegionId', 'province', 'regency', 'points']);
+        $this->reset(['name', 'email', 'phone', 'address', 'memberRegionId', 'province', 'regency', 'points']);
         $this->resetValidation();
         $this->resetPage();
         $this->createMemberModalOpen = false;
@@ -156,6 +190,7 @@ class MembersPage extends Component
         $this->editingName = (string) $member->name;
         $this->editingEmail = $member->email;
         $this->editingPhone = $member->phone;
+        $this->editingAddress = $member->address;
         $this->editingMemberRegionId = $member->member_region_id === null ? null : (string) $member->member_region_id;
         $this->editingProvince = $member->region ? (string) $member->region->province : null;
         $this->editingRegency = $member->region ? (string) $member->region->regency : null;
@@ -166,7 +201,7 @@ class MembersPage extends Component
     public function cancelEditMember(): void
     {
         $this->editingMemberId = null;
-        $this->reset(['editingName', 'editingEmail', 'editingPhone', 'editingMemberRegionId', 'editingProvince', 'editingRegency', 'editingPoints']);
+        $this->reset(['editingName', 'editingEmail', 'editingPhone', 'editingAddress', 'editingMemberRegionId', 'editingProvince', 'editingRegency', 'editingPoints']);
         $this->resetValidation();
     }
 
@@ -193,6 +228,7 @@ class MembersPage extends Component
                 'max:50',
                 Tenant::uniqueRule('members', 'phone')->ignore($this->editingMemberId),
             ],
+            'editingAddress' => ['nullable', 'string', 'max:2000'],
             'editingMemberRegionId' => ['nullable', 'integer', 'exists:member_regions,id'],
             'editingPoints' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -203,6 +239,7 @@ class MembersPage extends Component
                 'name' => $validated['editingName'],
                 'email' => $validated['editingEmail'] !== '' ? $validated['editingEmail'] : null,
                 'phone' => $validated['editingPhone'] !== '' ? $validated['editingPhone'] : null,
+                'address' => trim((string) ($validated['editingAddress'] ?? '')) !== '' ? trim((string) $validated['editingAddress']) : null,
                 'member_region_id' => $validated['editingMemberRegionId'] === null || $validated['editingMemberRegionId'] === '' ? null : (int) $validated['editingMemberRegionId'],
                 'points' => $validated['editingPoints'] === null || $validated['editingPoints'] === '' ? 0 : (int) $validated['editingPoints'],
             ]);

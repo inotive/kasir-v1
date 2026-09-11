@@ -65,6 +65,13 @@
                     </button>
                 @endcan
             @endif
+            @if (! in_array($paymentStatusKey, ['voided', 'refunded'], true))
+                @can('transactions.void')
+                    <button type="button" wire:click="openDeleteModal" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-error-300 bg-white px-4 text-sm font-semibold text-error-600 hover:bg-error-50 dark:border-error-800 dark:bg-gray-800 dark:text-error-400 dark:hover:bg-error-500/10">
+                        Hapus
+                    </button>
+                @endcan
+            @endif
         </div>
     </div>
 
@@ -558,6 +565,9 @@
                         </div>
                         <div>
                             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nominal Refund</label>
+                            <div class="mb-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                                <p>Total transaksi: <span class="font-semibold text-gray-800 dark:text-white/90">Rp{{ number_format((int) ($refundTotal ?? 0), 0, ',', '.') }}</span></p>
+                            </div>
                             <x-common.rupiah-input wire-model="refundAmount" placeholder="0" />
                             <x-common.input-error for="refundAmount" />
                             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Batas refund cepat: Rp{{ number_format($refundQuickMaxAmount, 0, ',', '.') }} (maks {{ number_format($refundQuickMaxCount, 0, ',', '.') }}/hari/kasir). Jika melebihi, sistem minta PIN.</p>
@@ -602,6 +612,60 @@
                         </button>
                         <button type="submit" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition">
                             Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    @if ($deleteModalOpen)
+        <div class="fixed inset-0 z-[100000] flex items-center justify-center p-4" aria-modal="true" role="dialog">
+            <div class="absolute inset-0 bg-black/50" wire:click="closeDeleteModal"></div>
+            <div class="relative w-full max-w-xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
+                <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+                    <div>
+                        <h3 class="text-base font-semibold text-error-600 dark:text-error-400">Hapus Transaksi</h3>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Data transaksi beserta item dan riwayatnya akan dihapus permanen. Stok yang sudah terpakai akan dikembalikan.</p>
+                    </div>
+                    <button type="button" wire:click="closeDeleteModal" class="text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
+                        Tutup
+                    </button>
+                </div>
+                <form wire:submit="deleteTransaction" class="space-y-4 p-5">
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Alasan</label>
+                        <input wire:model.live="correctionReason" type="text" aria-invalid="{{ $errors->has('correctionReason') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('correctionReason') ? 'error-correctionReason' : '' }}" class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+                        <x-common.input-error for="correctionReason" />
+                    </div>
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+                            <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Approval (PIN)</p>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Hapus transaksi selalu memerlukan approval (PIN) karena data dihapus permanen.</p>
+                            <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Approver (Opsional)</label>
+                                    <select wire:model.live="approverUserId" aria-invalid="{{ $errors->has('approverUserId') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('approverUserId') ? 'error-approverUserId' : '' }}" class="shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                                        <option value="">Auto (pakai PIN)</option>
+                                        @foreach ($deleteApprovers as $approver)
+                                            <option value="{{ (int) $approver->id }}">{{ $approver->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-common.input-error for="approverUserId" />
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Kosongkan jika ingin sistem otomatis mendeteksi approver dari PIN.</p>
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">PIN</label>
+                                    <input wire:model.live="approverPin" type="password" inputmode="numeric" aria-invalid="{{ $errors->has('approverPin') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('approverPin') ? 'error-approverPin' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="PIN approver" />
+                                    <x-common.input-error for="approverPin" />
+                                </div>
+                            </div>
+                        </div>
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" wire:click="closeDeleteModal" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                            Batal
+                        </button>
+                        <button type="submit" class="bg-error-500 shadow-theme-xs hover:bg-error-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition">
+                            Hapus Permanen
                         </button>
                     </div>
                 </form>

@@ -43,4 +43,9 @@ class Ingredient extends Model
     {
         return $this->hasMany(ProductVariantRecipe::class);
     }
+
+    public function addonRecipes(): HasMany
+    {
+        return $this->hasMany(AddonRecipe::class);
+    }
 }

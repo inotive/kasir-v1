@@ -124,12 +124,32 @@ Route::get('/manifest.webmanifest', function () {
         'theme_color' => '#111827',
         'icons' => [
             [
-                'src' => '/assets/images/192.png',
+                'src' => '/assets/pwa/android/launchericon-48x48.png',
+                'sizes' => '48x48',
+                'type' => 'image/png',
+            ],
+            [
+                'src' => '/assets/pwa/android/launchericon-72x72.png',
+                'sizes' => '72x72',
+                'type' => 'image/png',
+            ],
+            [
+                'src' => '/assets/pwa/android/launchericon-96x96.png',
+                'sizes' => '96x96',
+                'type' => 'image/png',
+            ],
+            [
+                'src' => '/assets/pwa/android/launchericon-144x144.png',
+                'sizes' => '144x144',
+                'type' => 'image/png',
+            ],
+            [
+                'src' => '/assets/pwa/android/launchericon-192x192.png',
                 'sizes' => '192x192',
                 'type' => 'image/png',
             ],
             [
-                'src' => '/assets/images/512.png',
+                'src' => '/assets/pwa/android/launchericon-512x512.png',
                 'sizes' => '512x512',
                 'type' => 'image/png',
             ],

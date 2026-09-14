@@ -140,7 +140,7 @@ if (!window.ReceiptTemplates) {
                     const fullName = variantName ? `${productName} (${variantName})` : productName;
                     const qty = item.quantity || 0;
                     const price = item.price || 0;
-                    
+
                     receipt += this.formatItem(fullName, qty, price) + "\n";
                     total += qty * price;
 
@@ -149,8 +149,29 @@ if (!window.ReceiptTemplates) {
                             const addonName = addon.name || 'Add-on';
                             const addonPrice = addon.price || 0;
                             const addonQty = addon.quantity || 1;
-                            receipt += this.formatItem(`  + ${addonName}`, addonQty, addonPrice) + "\n";
-                            total += addonQty * addonPrice;
+                            const lineTotal = addonQty * addonPrice;
+                            receipt += this.formatRow(`  + ${addonName}`, addonQty > 1 ? `${addonQty}x` : "", this.formatRibuan(lineTotal)) + "\n";
+                            total += lineTotal;
+                        });
+                    }
+
+                    if (item.children && Array.isArray(item.children) && item.children.length > 0) {
+                        item.children.forEach(child => {
+                            const cProductName = child.product?.name || child.name || 'Item';
+                            const cVariantName = child.variant_name || child.product_variant?.name || '';
+                            const cFullName = cVariantName ? `${cProductName} (${cVariantName})` : cProductName;
+                            const cQty = child.quantity || 0;
+                            receipt += `  \u2022 ${cFullName} x${cQty}\n`;
+                            if (child.addons && Array.isArray(child.addons) && child.addons.length > 0) {
+                                child.addons.forEach(addon => {
+                                    const addonName = addon.name || 'Add-on';
+                                    const addonPrice = addon.price || 0;
+                                    const addonQty = addon.quantity || 1;
+                                    const lineTotal = addonQty * addonPrice;
+                                    receipt += this.formatRow(`    + ${addonName}`, addonQty > 1 ? `${addonQty}x` : "", this.formatRibuan(lineTotal)) + "\n";
+                                    total += lineTotal;
+                                });
+                            }
                         });
                     }
                 });

@@ -22,6 +22,7 @@
     'addonPickerOpen' => false,
     'pickerCategoryIds' => [],
     'selectedAddonIds' => [],
+    'componentVariantPrices' => [],
 ])
 
 @php
@@ -258,13 +259,22 @@
                                             <x-common.input-error :for="'packageItems.'.$index.'.component_variant_id'" />
                                         </td>
                                         <td class="px-4 py-3 align-top">
-                                            <input
-                                                wire:model.live="packageItems.{{ $index }}.quantity"
-                                                type="number"
-                                                min="1"
-                                                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-                                                placeholder="1"
-                                            />
+                                            @php
+                                                $pkgVariantPrice = (int) ($componentVariantPrices[(int) ($row['component_variant_id'] ?? 0)] ?? 0);
+                                                $pkgQty = (int) ($row['quantity'] ?? 0);
+                                                $pkgRowTotal = $pkgVariantPrice * max(0, $pkgQty);
+                                            @endphp
+                                            <div class="flex items-center gap-2">
+                                                <input
+                                                    wire:model.live="packageItems.{{ $index }}.quantity"
+                                                    type="number"
+                                                    min="1"
+                                                    class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 min-w-0 flex-1 rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+                                                    placeholder="1"
+                                                />
+                                                <span class="shrink-0 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">Rp{{ number_format($pkgVariantPrice, 0, ',', '.') }}</span>
+                                            </div>
+                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Total: Rp{{ number_format($pkgRowTotal, 0, ',', '.') }}</p>
                                             <x-common.input-error :for="'packageItems.'.$index.'.quantity'" />
                                         </td>
                                         <td class="px-4 py-3 align-top text-right">
@@ -282,6 +292,20 @@
                         </tbody>
                     </table>
                 </div>
+                @php
+                    $simplePackageTotal = 0;
+                    foreach ($packageItems as $row) {
+                        $vid = (int) ($row['component_variant_id'] ?? 0);
+                        $qty = (int) ($row['quantity'] ?? 0);
+                        $simplePackageTotal += (int) ($componentVariantPrices[$vid] ?? 0) * max(0, $qty);
+                    }
+                    $complexPackageVisible = $packageType === 'complex' ? 0 : $simplePackageTotal;
+                @endphp
+                @if ($packageType !== 'complex' && $simplePackageTotal > 0)
+                    <div class="flex justify-end border-t border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                        <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Total: Rp{{ number_format($simplePackageTotal, 0, ',', '.') }}</p>
+                    </div>
+                @endif
             </div>
         </div>
         @endif
@@ -292,13 +316,15 @@
                     <h3 class="text-lg font-medium text-gray-800 dark:text-white">Varian Produk</h3>
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Tambah varian seperti Regular/Large atau Level pedas.</p>
                 </div>
-                <button
-                    type="button"
-                    wire:click="addVariant"
-                    class="shadow-theme-xs inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-600"
-                >
-                    Tambah Varian
-                </button>
+                @if (! $isPackage)
+                    <button
+                        type="button"
+                        wire:click="addVariant"
+                        class="shadow-theme-xs inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-600"
+                    >
+                        Tambah Varian
+                    </button>
+                @endif
             </div>
 
             <div class="p-4 sm:p-6 space-y-4">
@@ -331,12 +357,18 @@
                                 @endphp
                                 <tr wire:key="variant-row-{{ $variantKey }}" class="bg-white dark:bg-gray-950/30">
                                     <td class="px-4 py-3 align-top">
-                                        <input
-                                            wire:model.live="variants.{{ $index }}.name"
-                                            type="text"
-                                            class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-                                            placeholder="Contoh: Regular"
-                                        />
+                                        @if ($isPackage)
+                                            <div class="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+                                                {{ $variant['name'] !== '' ? $variant['name'] : '-' }}
+                                            </div>
+                                        @else
+                                            <input
+                                                wire:model.live="variants.{{ $index }}.name"
+                                                type="text"
+                                                class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+                                                placeholder="Contoh: Regular"
+                                            />
+                                        @endif
                                         <x-common.input-error :for="'variants.'.$index.'.name'" />
                                     </td>
                                     <td class="px-4 py-3 align-top">
@@ -404,13 +436,13 @@
                                                         <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Rp{{ number_format((float) ($hppByVariantKey[$variantKey] ?? 0), 0, ',', '.') }}</p>
                                                         <p class="text-xs text-gray-500 dark:text-gray-400">Dibulatkan ke rupiah</p>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        wire:click="addRecipe('{{ $variantKey }}')"
-                                                        class="shadow-theme-xs inline-flex items-center justify-center rounded-lg bg-brand-500 px-3 py-2 text-xs font-medium text-white transition hover:bg-brand-600"
-                                                    >
-                                                        Tambah Bahan
-                                                    </button>
+                                            <button
+                                                type="button"
+                                                wire:click="addRecipe('{{ $variantKey }}')"
+                                                class="shadow-theme-xs inline-flex items-center justify-center rounded-lg bg-brand-500 px-5 py-3 text-base font-bold text-white transition hover:bg-brand-600"
+                                            >
+                                                Tambah Bahan
+                                            </button>
                                                 </div>
 
                                                 <div class="overflow-x-auto">
@@ -495,7 +527,7 @@
                                             <button
                                                 type="button"
                                                 wire:click="addRecipe('{{ $variantKey }}')"
-                                                class="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                                                class="text-base font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
                                             >
                                                 + Tambah Bahan
                                             </button>
@@ -530,12 +562,18 @@
                             <div class="mt-3 space-y-3">
                                 <div>
                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama Varian</label>
-                                    <input
-                                        wire:model.live="variants.{{ $index }}.name"
-                                        type="text"
-                                        class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-                                        placeholder="Contoh: Regular"
-                                    />
+                                    @if ($isPackage)
+                                        <div class="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+                                            {{ $variant['name'] !== '' ? $variant['name'] : '-' }}
+                                        </div>
+                                    @else
+                                        <input
+                                            wire:model.live="variants.{{ $index }}.name"
+                                            type="text"
+                                            class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+                                            placeholder="Contoh: Regular"
+                                        />
+                                    @endif
                                     <x-common.input-error :for="'variants.'.$index.'.name'" />
                                 </div>
 
@@ -601,7 +639,7 @@
                                         <button
                                             type="button"
                                             wire:click="addRecipe('{{ $variantKey }}')"
-                                            class="mt-3 shadow-theme-xs inline-flex h-11 w-full items-center justify-center rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white transition hover:bg-brand-600"
+                                            class="mt-3 shadow-theme-xs inline-flex h-12 w-full items-center justify-center rounded-lg bg-brand-500 px-5 text-base font-bold text-white transition hover:bg-brand-600"
                                         >
                                             Tambah Bahan
                                         </button>
@@ -684,10 +722,10 @@
                                     </div>
                                 @endif
                                 @if (! $isPackage && count($recipes) === 0)
-                                    <button
+                                        <button
                                         type="button"
                                         wire:click="addRecipe('{{ $variantKey }}')"
-                                        class="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                                        class="text-base font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
                                     >
                                         + Tambah Bahan
                                     </button>
@@ -724,7 +762,7 @@
                 <button
                     type="button"
                     wire:click="openAddonPicker"
-                    class="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                    class="text-base font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
                 >
                     + Tambah Add-on
                 </button>
@@ -794,7 +832,7 @@
         <button
             type="button"
             wire:click="openAddonPicker"
-            class="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+            class="text-base font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
         >
             + Tambah Add-on
         </button>

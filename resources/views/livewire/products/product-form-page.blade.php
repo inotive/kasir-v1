@@ -19,6 +19,7 @@
         :hpp-by-variant-key="$hppByVariantKey"
         :all-addons="$allAddons"
         :shown-addons="$shownAddons"
+        :component-variant-prices="$componentVariantPrices"
         :shown-addon-category-ids="$shownAddonCategoryIds"
         :addon-picker-open="$addonPickerOpen"
         :picker-category-ids="$pickerCategoryIds"

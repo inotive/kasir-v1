@@ -336,10 +336,26 @@ class ProductFormPage extends Component
             ->all();
     }
 
+    public function updatedName(): void
+    {
+        if ($this->isPackage && trim((string) $this->name) !== '') {
+            $synced = trim((string) $this->name);
+            foreach ($this->variants as $idx => $row) {
+                $this->variants[$idx]['name'] = $synced;
+            }
+        }
+    }
+
     public function updatedIsPackage(bool $value): void
     {
         if ($value) {
             $this->selectedAddonIds = [];
+            $synced = trim((string) $this->name);
+            if ($synced !== '') {
+                foreach ($this->variants as $idx => $row) {
+                    $this->variants[$idx]['name'] = $synced;
+                }
+            }
         }
 
         if (! $value) {
@@ -389,6 +405,10 @@ class ProductFormPage extends Component
 
     public function addVariant(): void
     {
+        if ($this->isPackage) {
+            return;
+        }
+
         $variant = $this->makeEmptyVariant();
         $this->variants[] = $variant;
         $this->variantRecipes[(string) $variant['key']] = [];
@@ -981,7 +1001,7 @@ class ProductFormPage extends Component
             ->with(['product:id,name'])
             ->orderBy('product_id')
             ->orderBy('name')
-            ->get(['id', 'product_id', 'name', 'hpp']);
+            ->get(['id', 'product_id', 'name', 'price', 'hpp']);
 
         $componentProducts = Product::query()
             ->where('is_package', false)
@@ -1013,6 +1033,8 @@ class ProductFormPage extends Component
 
             return in_array($categoryId, $existingShownCategoryIds, true);
         });
+
+        $componentVariantPrices = $componentVariants->pluck('price', 'id')->map(fn ($v) => (int) $v)->all();
 
         $hppByVariantKey = [];
 
@@ -1063,6 +1085,7 @@ class ProductFormPage extends Component
             'ingredientCosts' => $ingredientCosts,
             'allAddons' => $allAddons,
             'shownAddons' => $shownAddons,
+            'componentVariantPrices' => $componentVariantPrices,
         ])->layout('layouts.app', ['title' => $this->title]);
     }
 }

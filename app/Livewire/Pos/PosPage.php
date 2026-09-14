@@ -200,7 +200,7 @@ class PosPage extends Component
         $this->pointRedemptionValue = (float) ($setting->point_redemption_value ?? 0);
 
         if ($this->customerName === '') {
-            $this->customerName = (string) ($setting->pos_default_customer_name ?? 'Walk-in');
+            $this->customerName = '';
         }
 
         if ($this->paymentMethod === 'cash' && (string) ($setting->pos_default_payment_method ?? 'cash') !== 'cash') {
@@ -298,6 +298,132 @@ class PosPage extends Component
         }
     }
 
+    public bool $createMemberInlineOpen = false;
+
+    public string $inlineMemberName = '';
+
+    public ?string $inlineMemberPhone = null;
+
+    public function getMemberSearchResultsProperty()
+    {
+        $term = trim((string) ($this->customerPhone ?? ''));
+        if ($this->customerType !== 'member' || $term === '' || mb_strlen($term) < 2) {
+            return collect();
+        }
+
+        if (! auth()->user()?->can('members.view')) {
+            return collect();
+        }
+
+        if (! auth()->user()?->can('members.pii.view')) {
+            return collect();
+        }
+
+        $normalized = $this->normalizePhoneForMember($term);
+        $query = Member::query()->where('phone', 'like', '%'.$term.'%');
+        if ($normalized !== null && $normalized !== '' && $normalized !== $term) {
+            $query->orWhere('phone', 'like', '%'.$normalized.'%');
+        }
+
+        return $query->orderBy('name')->limit(5)->get(['id', 'name', 'phone']);
+    }
+
+    public function selectSearchedMember(int $memberId): void
+    {
+        if ($this->cartLocked) {
+            return;
+        }
+
+        if (! auth()->user()?->can('members.view')) {
+            return;
+        }
+
+        $member = Member::query()->find($memberId);
+        if (! $member) {
+            return;
+        }
+
+        $this->memberId = (int) $member->id;
+        $this->customerName = (string) $member->name;
+        $this->customerPhone = (string) $member->phone;
+        $this->memberPoints = (int) $member->points;
+        $this->redeemPoints = false;
+        $this->pointsToRedeem = 0;
+        $this->recalculateTotals();
+    }
+
+    public function clearSelectedMember(): void
+    {
+        if ($this->cartLocked) {
+            return;
+        }
+
+        $this->memberId = null;
+        $this->customerName = '';
+        $this->customerPhone = null;
+        $this->memberPoints = 0;
+        $this->redeemPoints = false;
+        $this->pointsToRedeem = 0;
+        $this->resetValidation(['customerName', 'customerPhone', 'memberId']);
+    }
+
+    public function openCreateMemberInline(): void
+    {
+        $this->inlineMemberName = trim((string) $this->customerName);
+        $this->inlineMemberPhone = $this->customerPhone;
+        $this->resetValidation(['inlineMemberName', 'inlineMemberPhone']);
+        $this->createMemberInlineOpen = true;
+    }
+
+    public function closeCreateMemberInline(): void
+    {
+        $this->createMemberInlineOpen = false;
+        $this->resetValidation(['inlineMemberName', 'inlineMemberPhone']);
+    }
+
+    public function createMemberInline(): void
+    {
+        $this->authorize('members.create');
+        if (! auth()->user()?->can('members.pii.view')) {
+            $this->addError('inlineMemberPhone', 'Anda tidak memiliki akses untuk membuat member.');
+
+            return;
+        }
+
+        $validated = $this->validate([
+            'inlineMemberName' => ['required', 'string', 'max:255'],
+            'inlineMemberPhone' => ['required', 'string', 'max:50', \App\Models\Tenant::uniqueRule('members', 'phone')],
+        ], [], [
+            'inlineMemberName' => 'Nama',
+            'inlineMemberPhone' => 'Telepon',
+        ]);
+
+        $normalizedPhone = $this->normalizePhoneForMember((string) $validated['inlineMemberPhone']);
+        if ($normalizedPhone !== null && $normalizedPhone !== '') {
+            $exists = Member::query()->where('phone', $normalizedPhone)->exists();
+            if ($exists) {
+                $this->addError('inlineMemberPhone', 'Telepon sudah digunakan.');
+
+                return;
+            }
+        }
+
+        $member = Member::query()->create([
+            'name' => $validated['inlineMemberName'],
+            'phone' => $normalizedPhone !== '' ? $normalizedPhone : null,
+            'points' => 0,
+        ]);
+
+        $this->memberId = (int) $member->id;
+        $this->customerName = (string) $member->name;
+        $this->customerPhone = (string) $member->phone;
+        $this->memberPoints = (int) $member->points;
+        $this->createMemberInlineOpen = false;
+        $this->resetValidation(['inlineMemberName', 'inlineMemberPhone', 'customerName', 'customerPhone']);
+        $this->dispatch('toast', type: 'success', message: 'Member berhasil ditambahkan.');
+        $this->recalculateTotals();
+    }
+
     public function updatedCustomerPhone(): void
     {
         if ($this->cartLocked) {
@@ -305,6 +431,24 @@ class PosPage extends Component
             $this->dispatch('toast', type: 'error', message: 'Pesanan self-order tidak dapat mengubah data pelanggan.');
 
             return;
+        }
+
+        if ($this->memberId !== null) {
+            $currentPhone = $this->customerPhone === null ? '' : trim((string) $this->customerPhone);
+            $selectedPhone = '';
+            if ($this->memberId) {
+                $m = Member::query()->find($this->memberId);
+                $selectedPhone = $m ? (string) $m->phone : '';
+            }
+            if ($currentPhone === '' || $currentPhone !== $selectedPhone) {
+                $this->memberId = null;
+                $this->memberPoints = 0;
+                $this->redeemPoints = false;
+                $this->pointsToRedeem = 0;
+                if ($this->customerType === 'member') {
+                    $this->customerName = '';
+                }
+            }
         }
 
         $this->recalculateTotals();
@@ -320,6 +464,10 @@ class PosPage extends Component
         } else {
             $this->customerName = '';
             $this->customerPhone = null;
+            $this->memberId = null;
+            $this->memberPoints = 0;
+            $this->redeemPoints = false;
+            $this->pointsToRedeem = 0;
         }
     }
 
@@ -2227,17 +2375,26 @@ class PosPage extends Component
 
         $this->recalculateTotals();
 
-        if ($this->customerType === 'member' && $this->customerPhone) {
+        if ($this->customerType === 'member' && $this->memberId === null && $this->customerPhone) {
             $phone = $this->normalizePhoneForMember($this->customerPhone);
-            $member = Member::firstOrCreate(
-                ['phone' => $phone],
-                ['name' => $this->customerName, 'phone' => $phone],
-            );
-            $this->memberId = (int) $member->id;
-            $this->customerName = (string) $member->name;
-            $this->customerPhone = (string) $member->phone;
-            $this->memberPoints = (int) $member->points;
-            $this->recalculateTotals();
+            if ($phone !== null && $phone !== '') {
+                $existing = Member::query()->where('phone', $phone)->first();
+                if ($existing) {
+                    $this->addError('customerPhone', 'Member sudah ada, pilih dari daftar.');
+
+                    return;
+                }
+            }
+        }
+
+        if ($this->customerType === 'member' && $this->memberId !== null) {
+            $member = Member::query()->find($this->memberId);
+            if ($member) {
+                $this->customerName = (string) $member->name;
+                $this->customerPhone = (string) $member->phone;
+                $this->memberPoints = (int) $member->points;
+                $this->recalculateTotals();
+            }
         }
 
         if ($this->paymentFeeAmount > 0) {

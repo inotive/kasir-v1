@@ -198,7 +198,10 @@ class PosPrintPayloadService
 
         $user = auth()->user();
         $canViewPii = (bool) (($user && method_exists($user, 'can')) ? $user->can('transactions.pii.view') : false);
-        $customerName = $canViewPii ? (string) $trx->name : '-';
+        $isWalkIn = $trx->member_id === null;
+        $rawName = trim((string) $trx->name);
+        $fallbackName = $rawName !== '' ? $rawName : 'Walk-in';
+        $customerName = ($canViewPii || $isWalkIn) ? $fallbackName : '-';
 
         $createdAt = $trx->created_at ? $trx->created_at->copy() : now();
         $queueDate = $createdAt->toDateString();

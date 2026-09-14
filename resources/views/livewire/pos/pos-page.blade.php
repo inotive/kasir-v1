@@ -1258,17 +1258,48 @@
                                                         <span class="text-sm text-gray-700 dark:text-gray-300">Member</span>
                                                     </label>
                                                 </div>
+                                                @if ($customerType === 'walk_in')
+                                                    <div>
+                                                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
+                                                        <input wire:model.live="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="Nama walk-in" @disabled($cartLocked) />
+                                                        <x-common.input-error for="customerName" />
+                                                    </div>
+                                                @endif
                                                 @if ($customerType === 'member')
-                                                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                                        <div>
-                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
-                                                            <input wire:model.live="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="Nama" @disabled($cartLocked) />
-                                                            <x-common.input-error for="customerName" />
+                                                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                                                        <div class="relative">
+                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nomor HP</label>
+                                                            <input wire:model.live.debounce.300ms="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) autocomplete="off" />
+                                                            <x-common.input-error for="customerPhone" />
+                                                            @if (! $cartLocked && trim((string) ($customerPhone ?? '')) !== '' && mb_strlen(trim((string) $customerPhone)) >= 2 && $this->memberSearchResults->isNotEmpty() && $memberId === null)
+                                                                <div class="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                                                    @foreach ($this->memberSearchResults as $m)
+                                                                        <button type="button" wire:click="selectSearchedMember({{ (int) $m->id }})" class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/[0.05]">
+                                                                            <span class="font-medium text-gray-800 dark:text-white/90">{{ $m->name }}</span>
+                                                                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $m->phone }}</span>
+                                                                        </button>
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
                                                         </div>
                                                         <div>
-                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Telepon</label>
-                                                            <input wire:model.live="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) />
-                                                            <x-common.input-error for="customerPhone" />
+                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
+                                                            <div class="relative">
+                                                                <input wire:model.live="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 pr-9" placeholder="Terisi otomatis" @disabled($cartLocked || $memberId !== null) />
+                                                                @if ($memberId !== null && ! $cartLocked)
+                                                                    <button type="button" wire:click="clearSelectedMember" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">
+                                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                    </button>
+                                                                @endif
+                                                            </div>
+                                                            <x-common.input-error for="customerName" />
+                                                        </div>
+                                                        <div class="flex items-end">
+                                                            @can('members.create')
+                                                                <button type="button" wire:click="openCreateMemberInline" @disabled($cartLocked) class="shadow-theme-xs inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                                                </button>
+                                                            @endcan
                                                         </div>
                                                     </div>
                                                 @endif
@@ -1441,6 +1472,37 @@
                             </div>
                         
                 </div>
+
+                @if ($createMemberInlineOpen)
+                    <div class="fixed inset-0 z-[100010] flex items-center justify-center p-4" aria-modal="true" role="dialog">
+                        <div class="absolute inset-0 bg-black/50" wire:click="closeCreateMemberInline"></div>
+                        <div class="relative w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
+                            <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+                                <div>
+                                    <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">Tambah Member</h3>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Buat member baru dengan nomor HP dan nama.</p>
+                                </div>
+                                <button type="button" wire:click="closeCreateMemberInline" class="text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">Tutup</button>
+                            </div>
+                            <form wire:submit="createMemberInline" class="space-y-4 p-5">
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
+                                    <input wire:model.live="inlineMemberName" type="text" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="Nama member" />
+                                    <x-common.input-error for="inlineMemberName" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nomor HP</label>
+                                    <input wire:model.live="inlineMemberPhone" type="text" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" />
+                                    <x-common.input-error for="inlineMemberPhone" />
+                                </div>
+                                <div class="flex items-center justify-end gap-2">
+                                    <button type="button" wire:click="closeCreateMemberInline" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">Batal</button>
+                                    <button type="submit" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition">Simpan</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     @endif

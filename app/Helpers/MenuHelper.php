@@ -65,7 +65,7 @@ class MenuHelper
                 'path' => self::path('reports.operating-expenses'),
                 'permission' => 'reports.expenses.manage',
             ],
-            [
+            /*[
                 'name' => 'Member',
                 'icon' => 'members',
                 'permission' => 'members.view',
@@ -84,7 +84,7 @@ class MenuHelper
                         'permissionAny' => ['members.regions.view', 'members.regions.manage'],
                     ],
                 ],
-            ],
+            ], */
             [
                 'name' => 'Inventaris',
                 'icon' => 'inventory',
@@ -152,12 +152,12 @@ class MenuHelper
                     ],
                 ],
             ],
-            [
+            /*[
                 'name' => 'Voucher',
                 'path' => self::path('vouchers.index'),
                 'icon' => 'voucher',
                 'permission' => 'vouchers.view',
-            ],
+            ],*/
             [
                 'name' => 'Pengguna',
                 'path' => self::path('users.index'),
@@ -181,7 +181,7 @@ class MenuHelper
             ],
         ];
 
-        $items = array_values(array_filter(array_map(fn (array $item) => self::filterMenuItem($item, $user), $items)));
+        $items = array_values(array_filter(array_map(fn(array $item) => self::filterMenuItem($item, $user), $items)));
 
         return [
             [
@@ -279,17 +279,17 @@ class MenuHelper
             // Tag harga — tetap, paling tepat untuk produk
             'products' => '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>',
 
-            'voucher' => '<svg xmlns="http://www.w3.org/2000/svg" 
-     class="h-5 w-5" 
-     fill="none" 
-     viewBox="0 0 24 24" 
-     stroke="currentColor" 
+            'voucher' => '<svg xmlns="http://www.w3.org/2000/svg"
+     class="h-5 w-5"
+     fill="none"
+     viewBox="0 0 24 24"
+     stroke="currentColor"
      stroke-width="2">
-  <path stroke-linecap="round" stroke-linejoin="round" 
+  <path stroke-linecap="round" stroke-linejoin="round"
         d="M15 5H3a2 2 0 00-2 2v2a2 2 0 110 4v2a2 2 0 002 2h12m0-12h6a2 2 0 012 2v2a2 2 0 100 4v2a2 2 0 01-2 2h-6m0-12v14" />
-  
+
   <path stroke-linecap="round" stroke-linejoin="round" d="M15 8v1m0 3v1m0 3v1" />
-  
+
   <path stroke-linecap="round" stroke-linejoin="round" d="M7 11l1 1 2-2" />
 </svg>',
             // Kartu identitas anggota — lebih jelas sebagai "member card"
@@ -311,24 +311,24 @@ class MenuHelper
             'settings' => '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>',
 
             // Table grid — tepat untuk manajemen meja (restoran/kasir)
-            'tables' => '<svg xmlns="http://www.w3.org/2000/svg" 
-     class="h-5 w-5" 
-     fill="none" 
-     viewBox="0 0 24 24" 
-     stroke="currentColor" 
+            'tables' => '<svg xmlns="http://www.w3.org/2000/svg"
+     class="h-5 w-5"
+     fill="none"
+     viewBox="0 0 24 24"
+     stroke="currentColor"
      stroke-width="2">
   <rect x="3" y="3" width="5" height="5" rx="1" stroke-linecap="round" stroke-linejoin="round" />
   <path d="M5.5 5.5h0.01" stroke-linecap="round" stroke-linejoin="round" />
-  
+
   <rect x="16" y="3" width="5" height="5" rx="1" stroke-linecap="round" stroke-linejoin="round" />
   <path d="M18.5 5.5h0.01" stroke-linecap="round" stroke-linejoin="round" />
-  
+
   <rect x="3" y="16" width="5" height="5" rx="1" stroke-linecap="round" stroke-linejoin="round" />
   <path d="M5.5 18.5h0.01" stroke-linecap="round" stroke-linejoin="round" />
 
-  <path stroke-linecap="round" stroke-linejoin="round" 
+  <path stroke-linecap="round" stroke-linejoin="round"
         d="M11 3v2m0 4v2m0 4v6M11 11h2m4 0h4M16 16h2m3 0h.01M16 21h5M11 18h0.01" />
-  <path stroke-linecap="round" stroke-linejoin="round" 
+  <path stroke-linecap="round" stroke-linejoin="round"
         d="M3 11h2m4 0h2m0 4h2m4 0v5" />
 </svg>
                         ',

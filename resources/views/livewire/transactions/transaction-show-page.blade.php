@@ -252,14 +252,25 @@
                                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ $item->note }}</p>
                                         @endif
                                         @if ($children->isNotEmpty())
-                                            <div class="space-y-0.5">
+                                            <div class="space-y-1.5">
                                                 @foreach ($children as $child)
                                                     @php
                                                         $childVariant = \App\Support\Products\ItemNameFormatter::displayVariantName((int) $child->product_id, $child->variant?->name);
                                                     @endphp
-                                                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                        • {{ (string) ($child->product?->name ?? 'Produk') }}{{ $childVariant !== '' ? ' - '.$childVariant : '' }} x{{ number_format((int) ($child->quantity ?? 0), 0, ',', '.') }}
-                                                    </p>
+                                                    <div class="pl-2 border-l-2 border-gray-100 dark:border-gray-800">
+                                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                            • {{ (string) ($child->product?->name ?? 'Produk') }}{{ $childVariant !== '' ? ' - '.$childVariant : '' }} x{{ number_format((int) ($child->quantity ?? 0), 0, ',', '.') }}
+                                                        </p>
+                                                        @if ($child->itemAddons && $child->itemAddons->count() > 0)
+                                                            <div class="mt-0.5 flex flex-wrap gap-1 pl-3">
+                                                                @foreach ($child->itemAddons as $ia)
+                                                                    <span class="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                                                                        {{ $ia->addon?->name ?? 'Add-on' }} {{ $ia->quantity }}x +{{ $fmtCurrency((float) ($ia->price * $ia->quantity)) }}
+                                                                    </span>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                    </div>
                                                 @endforeach
                                             </div>
                                         @endif

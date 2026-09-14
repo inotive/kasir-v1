@@ -86,7 +86,7 @@
                 <div>
                     <h2 class="font-semibold text-gray-900 mb-2 receipt-total">Detail Pesanan</h2>
                     <ul class="space-y-2">
-                        @foreach($transaction->transactionItems as $it)
+                        @foreach($transaction->transactionItems->whereNull('parent_transaction_item_id') as $it)
                             <li class="flex items-start justify-between text-sm p-3 rounded-lg bg-gray-50 receipt-item">
                                 <div class="flex-1 min-w-0">
                                     <p class="font-semibold text-gray-800">{{ $it->quantity }}x {{ optional($it->product)->name }}</p>
@@ -102,6 +102,27 @@
                                                 <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
                                                     {{ $ia->addon?->name ?? 'Add-on' }} {{ $ia->quantity }}x +Rp{{ number_format((int) $ia->price * (int) $ia->quantity, 0, ',', '.') }}
                                                 </span>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                    @if($it->childTransactionItems && $it->childTransactionItems->count() > 0)
+                                        <div class="mt-2 space-y-1">
+                                            @foreach($it->childTransactionItems as $child)
+                                                @php
+                                                    $childVariantDisplay = \App\Support\Products\ItemNameFormatter::displayVariantName((int) $child->product_id, $child->variant?->name);
+                                                @endphp
+                                                <div class="pl-3 border-l-2 border-gray-200">
+                                                    <p class="text-xs text-gray-600">• {{ optional($child->product)->name }}{{ $childVariantDisplay !== '' ? ' ('.$childVariantDisplay.')' : '' }} x{{ (int) $child->quantity }}</p>
+                                                    @if($child->itemAddons && $child->itemAddons->count() > 0)
+                                                        <div class="mt-0.5 flex flex-wrap gap-1">
+                                                            @foreach($child->itemAddons as $ia)
+                                                                <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                                                                    {{ $ia->addon?->name ?? 'Add-on' }} {{ $ia->quantity }}x +Rp{{ number_format((int) $ia->price * (int) $ia->quantity, 0, ',', '.') }}
+                                                                </span>
+                                                            @endforeach
+                                                        </div>
+                                                    @endif
+                                                </div>
                                             @endforeach
                                         </div>
                                     @endif

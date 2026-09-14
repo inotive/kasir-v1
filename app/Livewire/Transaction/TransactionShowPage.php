@@ -595,6 +595,9 @@ class TransactionShowPage extends Component
                 'transactionItems.product',
                 'transactionItems.variant',
                 'transactionItems.itemAddons.addon',
+                'transactionItems.childTransactionItems.itemAddons.addon',
+                'transactionItems.childTransactionItems.product',
+                'transactionItems.childTransactionItems.variant',
                 'events' => fn ($q) => $q->latest(),
                 'events.actor',
             ])

@@ -77,21 +77,32 @@
                             @if ($item->childTransactionItems && $item->childTransactionItems->count() > 0)
                                 <div class="mt-2 space-y-2">
                                     @foreach ($item->childTransactionItems as $child)
-                                        <div class="flex items-start justify-between gap-3 pl-4">
-                                            <div class="min-w-0">
-                                                <div class="text-xs font-semibold text-gray-700 truncate">
-                                                    {{ (string) ($child->product?->name ?? '') }}
-                                                    @php
-                                                        $childVariantDisplay = \App\Support\Products\ItemNameFormatter::displayVariantName((int) $child->product_id, $child->variant?->name);
-                                                    @endphp
-                                                    @if ($childVariantDisplay !== '')
-                                                        <span class="text-[11px] text-gray-500">- {{ $childVariantDisplay }}</span>
-                                                    @endif
+                                        <div class="pl-4 border-l-2 border-gray-100">
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div class="min-w-0">
+                                                    <div class="text-xs font-semibold text-gray-700 truncate">
+                                                        {{ (string) ($child->product?->name ?? '') }}
+                                                        @php
+                                                            $childVariantDisplay = \App\Support\Products\ItemNameFormatter::displayVariantName((int) $child->product_id, $child->variant?->name);
+                                                        @endphp
+                                                        @if ($childVariantDisplay !== '')
+                                                            <span class="text-[11px] text-gray-500">- {{ $childVariantDisplay }}</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="shrink-0 text-right">
+                                                    <div class="text-[11px] text-gray-500">x{{ (int) ($child->quantity ?? 0) }}</div>
                                                 </div>
                                             </div>
-                                            <div class="shrink-0 text-right">
-                                                <div class="text-[11px] text-gray-500">x{{ (int) ($child->quantity ?? 0) }}</div>
-                                            </div>
+                                            @if ($child->itemAddons && $child->itemAddons->count() > 0)
+                                                <div class="mt-0.5 flex flex-wrap gap-1 pl-2">
+                                                    @foreach ($child->itemAddons as $ia)
+                                                        <span class="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
+                                                            {{ $ia->addon?->name ?? 'Add-on' }} {{ $ia->quantity }}x +Rp{{ number_format((int) $ia->price * (int) $ia->quantity, 0, ',', '.') }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                     @endforeach
                                 </div>

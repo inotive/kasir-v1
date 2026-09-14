@@ -40,6 +40,7 @@ class MemberTransactionShowPage extends Component
                         'itemAddons.addon:id,name',
                         'childTransactionItems.product:id,name',
                         'childTransactionItems.variant:id,name',
+                        'childTransactionItems.itemAddons.addon:id,name',
                     ])->orderBy('id');
                 },
             ])

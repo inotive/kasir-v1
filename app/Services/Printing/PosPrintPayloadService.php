@@ -10,6 +10,31 @@ use App\Support\Products\ItemNameFormatter;
 
 class PosPrintPayloadService
 {
+    private function serializeAddonsForMerge(array $addons): string
+    {
+        if ($addons === []) {
+            return '';
+        }
+
+        $norm = array_map(fn ($a) => [
+            'name' => (string) ($a['name'] ?? ''),
+            'price' => (int) ($a['price'] ?? 0),
+            'quantity' => (int) ($a['quantity'] ?? 0),
+        ], $addons);
+        usort($norm, fn ($x, $y) => strcmp($x['name'], $y['name']) ?: ($x['price'] <=> $y['price']));
+
+        return json_encode($norm, JSON_UNESCAPED_UNICODE);
+    }
+
+    private function mapAddons(TransactionItem $item): array
+    {
+        return $item->itemAddons->map(fn ($ia) => [
+            'name' => $ia->addon ? (string) $ia->addon->name : (string) ($ia->name ?? 'Add-on'),
+            'price' => (int) round((float) $ia->price),
+            'quantity' => (int) $ia->quantity,
+        ])->values()->all();
+    }
+
     private function mergeRows(array $rows): array
     {
         $merged = [];
@@ -17,8 +42,9 @@ class PosPrintPayloadService
             $productId = (int) ($row['product_id'] ?? 0);
             $variantId = (int) ($row['product_variant_id'] ?? 0);
             $note = trim((string) ($row['note'] ?? ''));
+            $addonsKey = $this->serializeAddonsForMerge((array) ($row['addons'] ?? []));
 
-            $key = $productId.'|'.$variantId.'|'.$note;
+            $key = $productId.'|'.$variantId.'|'.$note.'|'.$addonsKey;
 
             if (! isset($merged[$key])) {
                 $merged[$key] = $row;
@@ -70,9 +96,24 @@ class PosPrintPayloadService
             })
             ->values();
 
-        $items = $kasirItems->map(function (TransactionItem $item) {
+        $itemsByParentId = $trx->transactionItems->groupBy(fn (TransactionItem $it) => $it->parent_transaction_item_id === null ? 'root' : (string) $it->parent_transaction_item_id);
+
+        $items = $kasirItems->map(function (TransactionItem $item) use ($itemsByParentId) {
             $productName = $item->product ? (string) $item->product->name : 'Produk';
             $variantName = ItemNameFormatter::displayVariantName((int) $item->product_id, $item->variant?->name);
+            $children = ($itemsByParentId[(string) $item->id] ?? collect())->map(function (TransactionItem $child) {
+                $cProductName = $child->product ? (string) $child->product->name : 'Produk';
+                $cVariantName = ItemNameFormatter::displayVariantName((int) $child->product_id, $child->variant?->name);
+
+                return [
+                    'product_id' => (int) $child->product_id,
+                    'product_variant_id' => (int) ($child->product_variant_id ?? 0),
+                    'quantity' => (int) $child->quantity,
+                    'name' => $cProductName,
+                    'variant_name' => $cVariantName,
+                    'addons' => $this->mapAddons($child),
+                ];
+            })->values()->all();
 
             return [
                 'product_id' => (int) $item->product_id,
@@ -82,11 +123,8 @@ class PosPrintPayloadService
                 'note' => $item->note,
                 'name' => $productName,
                 'variant_name' => $variantName,
-                'addons' => $item->itemAddons->map(fn ($ia) => [
-                    'name' => $ia->addon ? (string) $ia->addon->name : 'Add-on',
-                    'price' => (int) round((float) $ia->price),
-                    'quantity' => (int) $ia->quantity,
-                ])->values()->all(),
+                'addons' => $this->mapAddons($item),
+                'children' => $children,
                 'product' => [
                     'name' => $productName,
                     'printer_source_id' => $item->product?->printer_source_id,
@@ -113,6 +151,7 @@ class PosPrintPayloadService
                 'note' => $item->note,
                 'name' => $productName,
                 'variant_name' => $variantName,
+                'addons' => $this->mapAddons($item),
                 'product' => [
                     'name' => $productName,
                     'printer_source_id' => $sourceId,

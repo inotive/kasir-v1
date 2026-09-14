@@ -1112,7 +1112,7 @@ class TransactionController extends Controller
 
     public function receipt($code)
     {
-        $transaction = Transaction::with('transactionItems.product', 'transactionItems.variant', 'diningTable')->where('code', $code)->firstOrFail();
+        $transaction = Transaction::with(['transactionItems.product', 'transactionItems.variant', 'transactionItems.itemAddons.addon', 'transactionItems.childTransactionItems.itemAddons.addon', 'diningTable'])->where('code', $code)->firstOrFail();
 
         $token = trim((string) request()->query('token', ''));
         $sessionToken = trim((string) session('self_order_token', ''));

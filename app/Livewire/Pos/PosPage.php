@@ -124,11 +124,13 @@ class PosPage extends Component
 
     public ?string $manualDiscountType = null;
 
-    public ?int $manualDiscountValue = null;
+    public mixed $manualDiscountValue = null;
 
     public int $manualDiscountAmount = 0;
 
     public ?string $manualDiscountNote = null;
+
+    public bool $applyManualDiscount = false;
 
     public int $discountTotalAmount = 0;
 
@@ -471,6 +473,19 @@ class PosPage extends Component
         }
     }
 
+    public function updatedApplyManualDiscount(): void
+    {
+        $this->resetValidation(['manualDiscountType', 'manualDiscountValue']);
+
+        if (! $this->applyManualDiscount) {
+            $this->manualDiscountType = null;
+            $this->manualDiscountValue = null;
+            $this->manualDiscountNote = null;
+        }
+
+        $this->recalculateTotals();
+    }
+
     public function updatedManualDiscountType(): void
     {
         $this->resetValidation(['manualDiscountType', 'manualDiscountValue']);
@@ -480,6 +495,8 @@ class PosPage extends Component
             $this->manualDiscountType = null;
             $this->manualDiscountValue = null;
             $this->manualDiscountNote = null;
+        } else {
+            $this->applyManualDiscount = true;
         }
 
         $this->recalculateTotals();
@@ -488,6 +505,21 @@ class PosPage extends Component
     public function updatedManualDiscountValue(): void
     {
         $this->resetValidation(['manualDiscountType', 'manualDiscountValue']);
+
+        if ($this->manualDiscountValue === null || $this->manualDiscountValue === '') {
+            $this->manualDiscountValue = null;
+        } elseif (is_int($this->manualDiscountValue)) {
+            // Already normalized.
+        } elseif (is_float($this->manualDiscountValue)) {
+            $this->manualDiscountValue = (int) $this->manualDiscountValue;
+        } else {
+            $digits = preg_replace('/\D+/', '', (string) $this->manualDiscountValue);
+            $this->manualDiscountValue = $digits === '' ? null : (int) $digits;
+        }
+
+        if ($this->manualDiscountValue !== null && (int) $this->manualDiscountValue > 0) {
+            $this->applyManualDiscount = true;
+        }
 
         $this->recalculateTotals();
     }
@@ -1911,6 +1943,10 @@ class PosPage extends Component
         $this->lockedMemberId = null;
         $this->lockedCustomerName = null;
         $this->lockedCustomerPhone = null;
+        $this->applyManualDiscount = false;
+        $this->manualDiscountType = null;
+        $this->manualDiscountValue = null;
+        $this->manualDiscountNote = null;
         $this->recalculateTotals();
     }
 
@@ -1930,6 +1966,8 @@ class PosPage extends Component
     public function openCheckout(): void
     {
         $this->resetValidation();
+        $this->applyManualDiscount = $this->manualDiscountAmount > 0;
+        $this->recalculateTotals();
         $this->cashReceived = $this->paymentMethod === 'cash' ? (string) $this->total : null;
         $this->cashChange = 0;
         $this->showQrisImage = false;
@@ -2177,7 +2215,7 @@ class PosPage extends Component
         $manualTypeForPermission = $this->manualDiscountType !== null ? trim((string) $this->manualDiscountType) : '';
         $manualValueForPermission = $this->manualDiscountValue === null ? 0 : (int) $this->manualDiscountValue;
 
-        if (($manualValueForPermission > 0 || $manualTypeForPermission !== '') && ! $this->userHasManualDiscountPermission()) {
+        if (($manualValueForPermission > 0 && $manualTypeForPermission !== '') && ! $this->userHasManualDiscountPermission()) {
             $this->addError('manualDiscountType', 'Anda tidak memiliki izin untuk memberikan diskon manual.');
 
             return;
@@ -2433,7 +2471,7 @@ class PosPage extends Component
         $manualTypeForPermission = $this->manualDiscountType !== null ? trim((string) $this->manualDiscountType) : '';
         $manualValueForPermission = $this->manualDiscountValue === null ? 0 : (int) $this->manualDiscountValue;
 
-        if (($manualValueForPermission > 0 || $manualTypeForPermission !== '') && ! $this->userHasManualDiscountPermission()) {
+        if (($manualValueForPermission > 0 && $manualTypeForPermission !== '') && ! $this->userHasManualDiscountPermission()) {
             $this->addError('manualDiscountType', 'Anda tidak memiliki izin untuk memberikan diskon manual.');
 
             return;
@@ -2735,8 +2773,16 @@ class PosPage extends Component
 
     private function ensureManualDiscountValid(): bool
     {
+        if (! $this->applyManualDiscount) {
+            return true;
+        }
+
         $type = $this->manualDiscountType !== null ? trim((string) $this->manualDiscountType) : '';
         $value = $this->manualDiscountValue === null ? null : (int) $this->manualDiscountValue;
+
+        if (($value ?? 0) <= 0) {
+            return true;
+        }
 
         if (($value ?? 0) > 0 && $type === '') {
             $this->addError('manualDiscountType', 'Tipe diskon wajib dipilih.');
@@ -3384,19 +3430,21 @@ class PosPage extends Component
 
         $this->manualDiscountAmount = 0;
 
-        $manualType = $this->manualDiscountType ? (string) $this->manualDiscountType : null;
-        $manualValue = $this->manualDiscountValue === null ? null : (int) $this->manualDiscountValue;
+        if ($this->applyManualDiscount) {
+            $manualType = $this->manualDiscountType ? (string) $this->manualDiscountType : null;
+            $manualValue = $this->manualDiscountValue === null ? null : (int) $this->manualDiscountValue;
 
-        if ($manualType !== null && $manualValue !== null && $manualValue > 0) {
-            $base = max(0, $this->subtotal - $this->voucherDiscountAmount);
+            if ($manualType !== null && $manualValue !== null && $manualValue > 0) {
+                $base = max(0, $this->subtotal - $this->voucherDiscountAmount);
 
-            if ($manualType === 'percent') {
-                $pct = max(0, min(100, $manualValue));
-                $this->manualDiscountAmount = (int) round($base * ($pct / 100));
-            } elseif ($manualType === 'fixed_amount') {
-                $this->manualDiscountAmount = min($base, max(0, $manualValue));
-            } else {
-                $this->manualDiscountAmount = 0;
+                if ($manualType === 'percent') {
+                    $pct = max(0, min(100, $manualValue));
+                    $this->manualDiscountAmount = (int) round($base * ($pct / 100));
+                } elseif ($manualType === 'fixed_amount') {
+                    $this->manualDiscountAmount = min($base, max(0, $manualValue));
+                } else {
+                    $this->manualDiscountAmount = 0;
+                }
             }
         }
 

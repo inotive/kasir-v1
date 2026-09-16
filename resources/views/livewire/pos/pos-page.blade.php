@@ -1057,6 +1057,110 @@
                             </div>
 
                             <div class="min-h-0 flex-1 overflow-y-auto p-6 pb-24">
+                                <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] mb-6">
+                                    <label class="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-gray-800 dark:text-white/90">
+                                        <input wire:model.live="applyManualDiscount" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                                        Diskon
+                                    </label>
+                                    @if ($applyManualDiscount)
+                                        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <div>
+                                                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Jenis Diskon</label>
+                                                <select wire:model.live="manualDiscountType" aria-invalid="{{ $errors->has('manualDiscountType') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('manualDiscountType') ? 'error-manualDiscountType' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
+                                                    <option value="">Pilih Jenis Diskon</option>
+                                                    <option value="percent">Persen (%)</option>
+                                                    <option value="fixed_amount">Nominal (Rp)</option>
+                                                </select>
+                                                <x-common.input-error for="manualDiscountType" />
+                                            </div>
+                                            <div>
+                                                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nilai</label>
+                                                <input
+                                                    x-data="{
+                                                        displayValue: '',
+                                                        debounce: null,
+                                                        init() {
+                                                            this.syncFromServer();
+                                                            this.$watch('$wire.manualDiscountValue', () => this.syncFromServer());
+                                                            this.$watch('$wire.manualDiscountType', () => this.syncFromServer());
+                                                        },
+                                                        isNominal() {
+                                                            return this.$wire.manualDiscountType === 'fixed_amount';
+                                                        },
+                                                        digitsOnly(val) {
+                                                            return (val || '').replace(/[^\d]/g, '');
+                                                        },
+                                                        formatRupiah(raw) {
+                                                            return String(raw).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                                                        },
+                                                        syncFromServer() {
+                                                            const val = this.$wire.manualDiscountValue;
+                                                            let digits = (val === null || val === undefined || val === '') ? '' : String(val).replace(/[^\d]/g, '');
+                                                            digits = this.clampDigits(digits);
+                                                            if (digits !== this.digitsOnly(this.displayValue)) {
+                                                                this.displayValue = digits === '' ? '' : (this.isNominal() ? this.formatRupiah(digits) : digits);
+                                                            }
+                                                        },
+                                                        clampDigits(digits) {
+                                                            if (digits === '') {
+                                                                return digits;
+                                                            }
+                                                            if (this.isNominal()) {
+                                                                digits = String(Math.min(this.maxNominal(), parseInt(digits, 10)));
+                                                            } else {
+                                                                digits = String(Math.min(100, parseInt(digits, 10)));
+                                                            }
+                                                            return digits;
+                                                        },
+                                                        maxNominal() {
+                                                            const subtotal = parseInt(this.$wire.subtotal ?? 0, 10) || 0;
+                                                            const voucher = parseInt(this.$wire.voucherDiscountAmount ?? 0, 10) || 0;
+                                                            return Math.max(0, subtotal - voucher);
+                                                        },
+                                                        handleInput(e) {
+                                                            const digits = this.clampDigits(this.digitsOnly(e.target.value));
+                                                            this.displayValue = digits === '' ? '' : (this.isNominal() ? this.formatRupiah(digits) : digits);
+                                                            clearTimeout(this.debounce);
+                                                            this.debounce = setTimeout(() => this.commit(digits), 500);
+                                                        },
+                                                        commit(digits) {
+                                                            clearTimeout(this.debounce);
+                                                            const raw = (digits === null || digits === undefined) ? '' : String(digits);
+                                                            const next = raw === '' ? null : parseInt(raw.replace(/[^\d]/g, ''), 10);
+                                                            const current = this.$wire.manualDiscountValue;
+                                                            if ((current ?? null) !== (next ?? null)) {
+                                                                this.$wire.set('manualDiscountValue', next);
+                                                            }
+                                                        }
+                                                    }"
+                                                    x-model="displayValue"
+                                                    @input="handleInput($event)"
+                                                    @blur="commit(digitsOnly(displayValue))"
+                                                    @keydown.enter="$event.target.blur()"
+                                                    type="text"
+                                                    inputmode="numeric"
+                                                    placeholder="0"
+                                                    aria-invalid="{{ $errors->has('manualDiscountValue') ? 'true' : 'false' }}"
+                                                    aria-describedby="{{ $errors->has('manualDiscountValue') ? 'error-manualDiscountValue' : '' }}"
+                                                    class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                                />
+                                                <x-common.input-error for="manualDiscountValue" />
+                                                @if ($manualDiscountType === 'fixed_amount')
+                                                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Min Rp 0 · Maks Rp {{ number_format(max(0, (int) $subtotal - (int) ($voucherDiscountAmount ?? 0)), 0, ',', '.') }}</p>
+                                                @else
+                                                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Min 0% · Maks 100%</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        @if (($manualDiscountAmount ?? 0) > 0)
+                                            <div class="mt-3 flex items-center justify-between rounded-xl bg-success-50 p-3 border border-success-100 dark:bg-success-900/20 dark:border-success-900/30">
+                                                <span class="text-sm font-semibold text-success-700 dark:text-success-300">Total Diskon</span>
+                                                <span class="text-sm font-bold text-success-700 dark:text-success-300">Rp {{ number_format((int) $manualDiscountAmount, 0, ',', '.') }}</span>
+                                            </div>
+                                        @endif
+                                    @endif
+                                </div>
+
                                 <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950 mb-6">
                                     <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                         <div>
@@ -1204,7 +1308,7 @@
                                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nilai</label>
                                                     @if ($manualDiscountType === 'fixed_amount')
                                                         <input 
-                                                            x-data="currencyInput($wire.entangle('manualDiscountValue'))"
+                                                            x-data="currencyInput($wire.entangle('manualDiscountValue').live)"
                                                             x-model="displayValue"
                                                             @input="handleInput"
                                                         type="text" 

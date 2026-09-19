@@ -128,7 +128,7 @@ class TransactionsPage extends Component
         $this->resetPage();
     }
 
-    protected function baseQuery(): Builder
+    protected function baseQuery(bool $applyPaymentMethodFilter = true): Builder
     {
         $canViewPii = auth()->user()?->can('transactions.pii.view') ?? false;
 
@@ -148,7 +148,7 @@ class TransactionsPage extends Component
                 });
             })
             ->when($this->paymentStatus !== '', fn (Builder $query) => $query->where('payment_status', $this->paymentStatus))
-            ->when($this->paymentMethod !== '', fn (Builder $query) => $query->where('payment_method', $this->paymentMethod))
+            ->when($applyPaymentMethodFilter && $this->paymentMethod !== '', fn (Builder $query) => $query->where('payment_method', $this->paymentMethod))
             ->when($this->orderType !== '', fn (Builder $query) => $query->where('order_type', $this->orderType));
 
         if ($this->fromDate) {
@@ -228,6 +228,45 @@ class TransactionsPage extends Component
         ];
     }
 
+    /**
+     * Cash vs QRIS breakdown for the currently filtered date range/search, ignoring
+     * the payment-method dropdown filter so both cards stay visible regardless of it.
+     */
+    protected function paymentMethodStats(): array
+    {
+        return [
+            'cash' => $this->revenueForPaymentMethods(['cash']),
+            'qris' => $this->revenueForPaymentMethods(['qris', 'qris_midtrans']),
+        ];
+    }
+
+    private function revenueForPaymentMethods(array $methods): array
+    {
+        $paidBase = $this->baseQuery(applyPaymentMethodFilter: false)
+            ->whereIn('payment_method', $methods)
+            ->whereIn('payment_status', NetSales::postedPaymentStatuses());
+
+        $count = (int) (clone $paidBase)->count();
+
+        $sub = DB::table('transactions as t')
+            ->join('transaction_items as ti', 't.id', '=', 'ti.transaction_id')
+            ->whereIn('t.id', (clone $paidBase)->select('id'))
+            ->selectRaw('t.id as tx_id')
+            ->selectRaw('COALESCE(t.refunded_amount, 0) as refunded_amount')
+            ->selectRaw('COALESCE(SUM('.NetSales::itemNetExpr('ti').'), 0) as item_net')
+            ->groupBy('tx_id', 'refunded_amount');
+
+        $revenue = (int) round((float) (DB::query()
+            ->fromSub($sub, 'x')
+            ->selectRaw('COALESCE(SUM('.NetSales::netPerTransactionExpr('x.item_net', 'x.refunded_amount').'), 0) as revenue')
+            ->value('revenue') ?? 0));
+
+        return [
+            'count' => $count,
+            'revenue' => $revenue,
+        ];
+    }
+
     private function buildPrintPayload(int $transactionId): ?array
     {
         return app(PosPrintPayloadService::class)->build($transactionId);
@@ -267,6 +306,7 @@ class TransactionsPage extends Component
             ->paginate($this->perPage);
 
         $stats = $this->stats();
+        $paymentMethodStats = $this->paymentMethodStats();
 
         return view('livewire.transactions.transactions-page', [
             'transactions' => $transactions,
@@ -274,6 +314,7 @@ class TransactionsPage extends Component
             'paymentMethodOptions' => $paymentMethodOptions,
             'orderTypeOptions' => $this->orderTypeOptions(),
             'stats' => $stats,
+            'paymentMethodStats' => $paymentMethodStats,
         ])->layout('layouts.app', ['title' => $this->title]);
     }
 }

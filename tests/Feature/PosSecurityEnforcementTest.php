@@ -39,6 +39,7 @@ test('pos import transaction code requires transactions.details', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->set('scanCode', $trx->code)
         ->call('importTransactionCode')
         ->assertStatus(403);
@@ -69,6 +70,7 @@ test('pos checkout ignores tampered cart item price and uses server price', func
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $variant->id)
         ->set('cartItems.0.price', 1)
         ->call('openCheckout')

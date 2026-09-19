@@ -214,9 +214,7 @@
                                     $stockStatus = $this->variantStockStatuses[$statusVariantId] ?? null;
                                 }
                                 $stockBadge = null;
-                                if ($stockStatus === 'missing_bom') {
-                                    $stockBadge = ['label' => 'Resep belum diatur', 'class' => 'bg-gray-900/70 text-white'];
-                                } elseif ($stockStatus === 'insufficient') {
+                                if ($stockStatus === 'insufficient') {
                                     $stockBadge = ['label' => 'Stok bahan kurang', 'class' => 'bg-error-600 text-white'];
                                 } elseif ($stockStatus === 'low') {
                                     $stockBadge = ['label' => 'Stok bahan menipis', 'class' => 'bg-warning-600 text-white'];
@@ -616,9 +614,7 @@
                                     $isSelected = (int) ($selectedModalVariantId ?? 0) === $variantId;
                                     $stockStatus = $variantId > 0 ? ($this->variantStockStatuses[$variantId] ?? null) : null;
                                     $stockBadge = null;
-                                    if ($stockStatus === 'missing_bom') {
-                                        $stockBadge = ['label' => 'BOM belum diatur', 'class' => 'bg-gray-900/70 text-white'];
-                                    } elseif ($stockStatus === 'insufficient') {
+                                    if ($stockStatus === 'insufficient') {
                                         $stockBadge = ['label' => 'Stok bahan kurang', 'class' => 'bg-error-600 text-white'];
                                     } elseif ($stockStatus === 'low') {
                                         $stockBadge = ['label' => 'Stok menipis', 'class' => 'bg-warning-600 text-white'];

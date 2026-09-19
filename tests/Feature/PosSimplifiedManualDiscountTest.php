@@ -38,6 +38,7 @@ it('allows user with permission to apply manual discount without approval', func
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('manualDiscountType', 'percent')
         ->set('manualDiscountValue', 10) // 10%
@@ -66,6 +67,7 @@ it('saves discount type fixed amount correctly', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('manualDiscountType', 'fixed_amount')
         ->set('manualDiscountValue', 15000)
@@ -93,6 +95,7 @@ it('saves optional note', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('manualDiscountType', 'fixed_amount')
         ->set('manualDiscountValue', 5000)
@@ -118,6 +121,7 @@ it('does not require reason', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('manualDiscountType', 'percent')
         ->set('manualDiscountValue', 10)
@@ -139,6 +143,7 @@ it('prevents user without permission from applying discount', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('manualDiscountType', 'percent')
         ->set('manualDiscountValue', 10)
@@ -160,6 +165,7 @@ it('requires manual discount type when value is filled', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('manualDiscountType', null)
         ->set('manualDiscountValue', 10)

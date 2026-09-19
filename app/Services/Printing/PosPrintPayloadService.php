@@ -98,6 +98,26 @@ class PosPrintPayloadService
 
         $itemsByParentId = $trx->transactionItems->groupBy(fn (TransactionItem $it) => $it->parent_transaction_item_id === null ? 'root' : (string) $it->parent_transaction_item_id);
 
+        // Package-level addons live on the package's root item, but that root item is
+        // excluded from $stationItems below (kitchen only cares about the actual
+        // components). Collect those addons here so they can be attached to each
+        // component's checker row instead of being silently dropped.
+        $packageAddonsByChildId = [];
+        foreach ($trx->transactionItems as $rootItem) {
+            if ($rootItem->parent_transaction_item_id !== null || ! $rootItem->product?->is_package) {
+                continue;
+            }
+
+            $parentAddons = $this->mapAddons($rootItem);
+            if ($parentAddons === []) {
+                continue;
+            }
+
+            foreach (($itemsByParentId[(string) $rootItem->id] ?? collect()) as $child) {
+                $packageAddonsByChildId[$child->id] = $parentAddons;
+            }
+        }
+
         $items = $kasirItems->map(function (TransactionItem $item) use ($itemsByParentId) {
             $productName = $item->product ? (string) $item->product->name : 'Produk';
             $variantName = ItemNameFormatter::displayVariantName((int) $item->product_id, $item->variant?->name);
@@ -143,6 +163,8 @@ class PosPrintPayloadService
             $productName = $item->product ? (string) $item->product->name : 'Produk';
             $variantName = ItemNameFormatter::displayVariantName((int) $item->product_id, $item->variant?->name);
 
+            $addons = array_merge($this->mapAddons($item), $packageAddonsByChildId[$item->id] ?? []);
+
             $row = [
                 'product_id' => (int) $item->product_id,
                 'product_variant_id' => (int) ($item->product_variant_id ?? 0),
@@ -151,7 +173,7 @@ class PosPrintPayloadService
                 'note' => $item->note,
                 'name' => $productName,
                 'variant_name' => $variantName,
-                'addons' => $this->mapAddons($item),
+                'addons' => $addons,
                 'product' => [
                     'name' => $productName,
                     'printer_source_id' => $sourceId,

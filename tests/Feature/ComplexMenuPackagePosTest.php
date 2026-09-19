@@ -171,6 +171,7 @@ class ComplexMenuPackagePosTest extends TestCase
         ]);
 
         Livewire::test(PosPage::class)
+            ->set('orderType', 'take_away')
             ->call('addVariantToCart', $packageVariant->id)
             ->assertSet('complexPackageModalOpen', true)
             ->set('complexPackageComponents.0.allocations', [

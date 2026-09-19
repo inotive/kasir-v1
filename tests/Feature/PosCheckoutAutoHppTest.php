@@ -57,6 +57,7 @@ test('pos checkout sets hpp automatically after payment', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+        ->set('orderType', 'take_away')
         ->call('addVariantToCart', $variant->id)
         ->call('openCheckout')
         ->set('customerName', 'Budi')

@@ -39,6 +39,7 @@ it('checkbox discount flow: toggle, percent, total akhir, db and receipt', funct
 
     $component = Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->assertSet('applyManualDiscount', false)
         ->assertSet('manualDiscountAmount', 0)
@@ -85,6 +86,7 @@ it('nominal discount via checkbox is capped and unchecking clears it', function 
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('applyManualDiscount', true)
         ->set('manualDiscountType', 'fixed_amount')
@@ -115,6 +117,7 @@ it('checking discount with zero value checks out as no discount', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('applyManualDiscount', true)
         ->assertSet('manualDiscountType', null)
@@ -143,6 +146,7 @@ it('rejects percent above 100 at checkout', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('applyManualDiscount', true)
         ->set('manualDiscountType', 'percent')
@@ -167,6 +171,7 @@ it('caps nominal above subtotal at checkout', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('applyManualDiscount', true)
         ->set('manualDiscountType', 'fixed_amount')
@@ -195,6 +200,7 @@ it('normalizes float discount value without crashing', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('applyManualDiscount', true)
         ->set('manualDiscountType', 'percent')
@@ -223,6 +229,7 @@ it('caps huge nominal value at subtotal without crashing', function () {
 
     Livewire::actingAs($user)
         ->test(PosPage::class)
+            ->set('orderType', 'take_away')
         ->call('addVariantToCart', $this->variant->id)
         ->set('applyManualDiscount', true)
         ->set('manualDiscountType', 'fixed_amount')

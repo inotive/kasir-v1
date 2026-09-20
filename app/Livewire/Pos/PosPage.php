@@ -38,7 +38,7 @@ class PosPage extends Component
 
     public ?int $selectedCategoryId = null;
 
-    public string $orderType = 'dine_in';
+    public string $orderType = 'take_away';
 
     public ?int $selectedTableId = null;
 
@@ -1955,7 +1955,7 @@ class PosPage extends Component
         $setting = Setting::current();
 
         $this->clearCart();
-        $this->orderType = 'dine_in';
+        $this->orderType = 'take_away';
         $this->selectedTableId = null;
         $this->customerType = 'walk_in';
         $this->memberId = null;

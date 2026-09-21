@@ -1178,6 +1178,30 @@
                                     </div>
                                 </div>
 
+                                @php
+                                    $user = auth()->user();
+                                    $canViewMemberPii = (bool) (($user && method_exists($user, 'can')) ? $user->can('members.pii.view') : false);
+                                    $maskPhone = function ($phone): string {
+                                        $phone = trim((string) ($phone ?? ''));
+                                        if ($phone === '') {
+                                            return '';
+                                        }
+                                        $len = strlen($phone);
+                                        if ($len <= 4) {
+                                            return str_repeat('*', max(0, $len - 1)).substr($phone, -1);
+                                        }
+
+                                        return substr($phone, 0, 2).str_repeat('*', max(0, $len - 6)).substr($phone, -4);
+                                    };
+                                    $memberPhoneLabel = function ($member) use ($canViewMemberPii, $maskPhone): string {
+                                        if (! $member?->phone) {
+                                            return 'belum ada nomor';
+                                        }
+
+                                        return $canViewMemberPii ? (string) $member->phone : $maskPhone($member->phone);
+                                    };
+                                @endphp
+
                                 @if ($checkoutStep === 1)
                                     <div class="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
                                         <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Customer</p>
@@ -1187,30 +1211,8 @@
                                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Member (Opsional)</label>
                                                     <select wire:model.live="memberId" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" @disabled($cartLocked)>
                                                         <option value="">-</option>
-                                                        @php
-                                                            $user = auth()->user();
-                                                            $canViewMemberPii = (bool) (($user && method_exists($user, 'can')) ? $user->can('members.pii.view') : false);
-                                                            $maskPhone = function ($phone): string {
-                                                                $phone = trim((string) ($phone ?? ''));
-                                                                if ($phone === '') {
-                                                                    return '';
-                                                                }
-                                                                $len = strlen($phone);
-                                                                if ($len <= 4) {
-                                                                    return str_repeat('*', max(0, $len - 1)).substr($phone, -1);
-                                                                }
-
-                                                                return substr($phone, 0, 2).str_repeat('*', max(0, $len - 6)).substr($phone, -4);
-                                                            };
-                                                        @endphp
                                                         @foreach ($this->members as $m)
-                                                            @php
-                                                                $phoneLabel = '';
-                                                                if ($m->phone) {
-                                                                    $phoneLabel = $canViewMemberPii ? (string) $m->phone : $maskPhone($m->phone);
-                                                                }
-                                                            @endphp
-                                                            <option value="{{ (int) $m->id }}">{{ $m->name }}{{ $phoneLabel !== '' ? ' ('.$phoneLabel.')' : '' }}</option>
+                                                            <option value="{{ (int) $m->id }}">{{ $m->name }} ({{ $memberPhoneLabel($m) }})</option>
                                                         @endforeach
                                                     </select>
                                                 @else
@@ -1367,16 +1369,15 @@
                                                 @endif
                                                 @if ($customerType === 'member')
                                                     <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                                                        <div class="relative">
+                                                        <div class="relative" x-data="{ phoneDropdownOpen: false }" @click.outside="phoneDropdownOpen = false">
                                                             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nomor HP</label>
-                                                            <input wire:model.live.debounce.300ms="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) autocomplete="off" />
+                                                            <input wire:model.live.debounce.300ms="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) autocomplete="off" @focus="phoneDropdownOpen = true" />
                                                             <x-common.input-error for="customerPhone" />
-                                                            @if (! $cartLocked && trim((string) ($customerPhone ?? '')) !== '' && mb_strlen(trim((string) $customerPhone)) >= 2 && $this->memberSearchResults->isNotEmpty() && $memberId === null)
-                                                                <div class="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                                            @if (! $cartLocked && $memberId === null && $this->memberSearchResults->isNotEmpty())
+                                                                <div class="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800" x-show="phoneDropdownOpen" x-cloak>
                                                                     @foreach ($this->memberSearchResults as $m)
-                                                                        <button type="button" wire:click="selectSearchedMember({{ (int) $m->id }})" class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/[0.05]">
-                                                                            <span class="font-medium text-gray-800 dark:text-white/90">{{ $m->name }}</span>
-                                                                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $m->phone }}</span>
+                                                                        <button type="button" wire:click="selectSearchedMember({{ (int) $m->id }})" @click="phoneDropdownOpen = false" class="block w-full px-4 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-50 dark:text-white/90 dark:hover:bg-white/[0.05]">
+                                                                            {{ $memberPhoneLabel($m) }} - {{ $m->name }}
                                                                         </button>
                                                                     @endforeach
                                                                 </div>
@@ -1396,8 +1397,9 @@
                                                         </div>
                                                         <div class="flex items-end">
                                                             @can('members.create')
-                                                                <button type="button" wire:click="openCreateMemberInline" @disabled($cartLocked) class="shadow-theme-xs inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
-                                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                                                <button type="button" wire:click="openCreateMemberInline" @disabled($cartLocked) class="shadow-theme-xs inline-flex h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                                                                    <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                                                    Tambah Member
                                                                 </button>
                                                             @endcan
                                                         </div>

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Transaction;
 
+use App\Models\Member;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Services\Printing\PosPrintPayloadService;
@@ -10,6 +11,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -39,9 +41,27 @@ class TransactionsPage extends Component
 
     public int $perPage = 15;
 
+    #[Url]
+    public ?int $memberId = null;
+
     public function mount(): void
     {
         $this->authorize('transactions.view');
+
+        if ($this->memberId) {
+            $this->rangePreset = 'custom';
+            $this->fromDate = null;
+            $this->toDate = null;
+
+            return;
+        }
+
+        $this->setRange('today');
+    }
+
+    public function clearMemberFilter(): void
+    {
+        $this->memberId = null;
         $this->setRange('today');
     }
 
@@ -149,7 +169,8 @@ class TransactionsPage extends Component
             })
             ->when($this->paymentStatus !== '', fn (Builder $query) => $query->where('payment_status', $this->paymentStatus))
             ->when($applyPaymentMethodFilter && $this->paymentMethod !== '', fn (Builder $query) => $query->where('payment_method', $this->paymentMethod))
-            ->when($this->orderType !== '', fn (Builder $query) => $query->where('order_type', $this->orderType));
+            ->when($this->orderType !== '', fn (Builder $query) => $query->where('order_type', $this->orderType))
+            ->when($this->memberId, fn (Builder $query) => $query->where('member_id', $this->memberId));
 
         if ($this->fromDate) {
             $query->whereDate('created_at', '>=', $this->fromDate);
@@ -307,6 +328,7 @@ class TransactionsPage extends Component
 
         $stats = $this->stats();
         $paymentMethodStats = $this->paymentMethodStats();
+        $filteredMember = $this->memberId ? Member::query()->find($this->memberId) : null;
 
         return view('livewire.transactions.transactions-page', [
             'transactions' => $transactions,
@@ -315,6 +337,7 @@ class TransactionsPage extends Component
             'orderTypeOptions' => $this->orderTypeOptions(),
             'stats' => $stats,
             'paymentMethodStats' => $paymentMethodStats,
+            'filteredMember' => $filteredMember,
         ])->layout('layouts.app', ['title' => $this->title]);
     }
 }

@@ -6,6 +6,17 @@
         </div>
     </div>
 
+    @if ($filteredMember)
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 dark:border-brand-800 dark:bg-brand-900/20">
+            <p class="text-sm text-brand-700 dark:text-brand-300">
+                Menampilkan transaksi milik: <span class="font-semibold">{{ $filteredMember->name }}</span>
+            </p>
+            <button type="button" wire:click="clearMemberFilter" class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
+                Hapus filter
+            </button>
+        </div>
+    @endif
+
     <x-common.date-range-picker
         :preset="$rangePreset"
         :from="$fromDate"

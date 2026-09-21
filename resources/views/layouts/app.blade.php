@@ -295,14 +295,34 @@
                         </div>
 
                         <div class="border-t border-gray-200 p-5 dark:border-gray-800">
-                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <button type="button" :aria-disabled="!canPrintSelected()" @click="printSelected()" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition" :class="!canPrintSelected() ? 'opacity-50' : ''">
-                                    Cetak Sesuai Pilihan
-                                </button>
-                                <button type="button" :aria-disabled="!canPrintKasirOnly()" @click="printKasirOnly()" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]" :class="!canPrintKasirOnly() ? 'opacity-50' : ''">
-                                    Cetak Kasir Saja
-                                </button>
-                            </div>
+                            <template x-if="!stepActive">
+                                <div class="space-y-2">
+                                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <button type="button" :aria-disabled="!canPrintSelected()" @click="printSelected()" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition" :class="!canPrintSelected() ? 'opacity-50' : ''">
+                                            Cetak Sesuai Pilihan
+                                        </button>
+                                        <button type="button" :aria-disabled="!canPrintKasirOnly()" @click="printKasirOnly()" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]" :class="!canPrintKasirOnly() ? 'opacity-50' : ''">
+                                            Cetak Kasir Saja
+                                        </button>
+                                    </div>
+                                    <button type="button" :aria-disabled="!canPrintStepThrough()" @click="printStepThrough()" class="shadow-theme-xs inline-flex h-11 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]" :class="!canPrintStepThrough() ? 'opacity-50' : ''">
+                                        Cetak Bergantian
+                                    </button>
+                                </div>
+                            </template>
+
+                            <template x-if="stepActive">
+                                <div class="space-y-3">
+                                    <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-950">
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white/90">
+                                            <span x-text="'Tercetak: ' + (currentStepJob()?.label || '-')"></span>
+                                        </p>
+                                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400" x-text="(stepIndex + 1) + ' dari ' + stepJobs.length + ' printer'"></p>
+                                    </div>
+                                    <button type="button" :disabled="busy" @click="printNextStep()" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-11 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition disabled:opacity-50" x-text="isLastStep() ? 'Selesai' : ('Lanjut Cetak ' + (nextStepJob()?.label || 'Berikutnya'))">
+                                    </button>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>

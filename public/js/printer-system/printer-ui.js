@@ -178,6 +178,9 @@
                 selected: {},
                 issues: [],
                 statusTick: 0,
+                stepJobs: [],
+                stepIndex: 0,
+                stepActive: false,
                 init() {
                     this.onModal = (data) => {
                         const payload = data?.detail?.payload ?? data?.payload ?? (Array.isArray(data) ? data[0]?.payload : null);
@@ -266,6 +269,9 @@
                     this.selected = {};
                     this.issues = [];
                     this.statusTick = Number(this.statusTick || 0) + 1;
+                    this.stepJobs = [];
+                    this.stepIndex = 0;
+                    this.stepActive = false;
                 },
                 sources() {
                     const list = Array.isArray(this.payload?.printer_sources) ? this.payload.printer_sources : (Array.isArray(window.PRINTER_SOURCES) ? window.PRINTER_SOURCES : []);
@@ -578,6 +584,93 @@
                             return;
                         }
                         this.close();
+                    } finally {
+                        this.busy = false;
+                    }
+                },
+                stepOrderedJobs() {
+                    const kasir = this.kasirJob();
+                    const others = this.selectedJobs().filter((j) => !kasir || j.printer_source_id !== kasir.printer_source_id);
+                    return kasir ? [kasir, ...others] : others;
+                },
+                canPrintStepThrough() {
+                    return !this.busy && !this.stepActive && this.blockingIssues().length === 0;
+                },
+                currentStepJob() {
+                    return this.stepJobs[this.stepIndex] || null;
+                },
+                nextStepJob() {
+                    return this.stepJobs[this.stepIndex + 1] || null;
+                },
+                isLastStep() {
+                    return this.stepIndex >= this.stepJobs.length - 1;
+                },
+                sendStepJob(job) {
+                    if (!job) return false;
+
+                    const orderData = {
+                        store: this.payload.store,
+                        order: this.payload.order,
+                        customer_name: this.payload.customer_name,
+                        name_kasir: this.payload.name_kasir,
+                        table_number: this.payload.table_number,
+                        items: this.payload.items,
+                        print_jobs: [job],
+                    };
+                    if (window.PRINTER_DEBUG) {
+                        try {
+                            console.groupCollapsed('[POS Print] printStepThrough job');
+                            console.info('order', orderData?.order);
+                            console.info('print_jobs', orderData?.print_jobs);
+                            console.groupEnd();
+                        } catch (e) {
+                        }
+                    }
+
+                    if (!window.PrinterManager?.printOrder) {
+                        console.error('[POS Print] PrinterManager tidak tersedia');
+                        return false;
+                    }
+
+                    try {
+                        window.PrinterManager.printOrder(orderData);
+                    } catch (e) {
+                        console.error('[POS Print] printOrder error', e);
+                        return false;
+                    }
+
+                    return true;
+                },
+                async printStepThrough() {
+                    if (this.busy || this.stepActive) return;
+                    this.revalidate();
+                    if (this.blockingIssues().length > 0) return;
+
+                    const jobs = this.stepOrderedJobs();
+                    if (jobs.length === 0) return;
+
+                    this.busy = true;
+                    try {
+                        if (!this.sendStepJob(jobs[0])) return;
+                        this.stepJobs = jobs;
+                        this.stepIndex = 0;
+                        this.stepActive = true;
+                    } finally {
+                        this.busy = false;
+                    }
+                },
+                async printNextStep() {
+                    if (this.busy || !this.stepActive) return;
+
+                    if (this.isLastStep()) {
+                        this.close();
+                        return;
+                    }
+
+                    this.busy = true;
+                    try {
+                        if (!this.sendStepJob(this.nextStepJob())) return;
+                        this.stepIndex += 1;
                     } finally {
                         this.busy = false;
                     }

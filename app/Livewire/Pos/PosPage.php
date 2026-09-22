@@ -308,8 +308,7 @@ class PosPage extends Component
 
     public function getMemberSearchResultsProperty()
     {
-        $term = trim((string) ($this->customerPhone ?? ''));
-        if ($this->customerType !== 'member' || $term === '' || mb_strlen($term) < 2) {
+        if ($this->customerType !== 'member') {
             return collect();
         }
 
@@ -317,7 +316,13 @@ class PosPage extends Component
             return collect();
         }
 
-        if (! auth()->user()?->can('members.pii.view')) {
+        $term = trim((string) ($this->customerPhone ?? ''));
+
+        if ($term === '') {
+            return Member::query()->orderBy('name')->limit(20)->get(['id', 'name', 'phone']);
+        }
+
+        if (mb_strlen($term) < 2) {
             return collect();
         }
 

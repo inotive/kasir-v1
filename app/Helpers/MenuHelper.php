@@ -65,7 +65,7 @@ class MenuHelper
                 'path' => self::path('reports.operating-expenses'),
                 'permission' => 'reports.expenses.manage',
             ],
-            /*[
+            [
                 'name' => 'Member',
                 'icon' => 'members',
                 'permission' => 'members.view',
@@ -84,7 +84,7 @@ class MenuHelper
                         'permissionAny' => ['members.regions.view', 'members.regions.manage'],
                     ],
                 ],
-            ], */
+            ],
             [
                 'name' => 'Inventaris',
                 'icon' => 'inventory',

@@ -130,7 +130,13 @@
                                 @endif
                             </td>
                             <td class="px-5 py-4 text-right">
-                                <p class="text-sm text-gray-800 dark:text-white/90">{{ number_format((int) ($member->transactions_count ?? 0), 0, ',', '.') }}</p>
+                                @can('transactions.view')
+                                    <a href="{{ route('transactions.index', ['memberId' => $member->id]) }}" class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
+                                        {{ number_format((int) ($member->transactions_count ?? 0), 0, ',', '.') }}
+                                    </a>
+                                @else
+                                    <p class="text-sm text-gray-800 dark:text-white/90">{{ number_format((int) ($member->transactions_count ?? 0), 0, ',', '.') }}</p>
+                                @endcan
                             </td>
                             <td class="px-5 py-4 text-right">
                                 <div class="inline-flex items-center gap-2">

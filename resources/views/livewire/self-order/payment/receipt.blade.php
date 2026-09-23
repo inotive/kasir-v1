@@ -77,6 +77,10 @@
                         <p class="text-gray-500 receipt-muted">Nomor Meja</p>
                         <p class="font-semibold text-gray-900">{{ optional($transaction->diningTable)->table_number ?? '-' }}</p>
                     </div>
+                    <div>
+                        <p class="text-gray-500 receipt-muted">Metode Pembayaran</p>
+                        <p class="font-semibold text-gray-900">{{ \App\Helpers\DataLabelHelper::enum($transaction->payment_method, 'payment_method') }}</p>
+                    </div>
                 </div>
 
                 <!-- Divider -->
@@ -191,6 +195,17 @@
                         <p class="font-bold text-gray-900 receipt-total">Total</p>
                         <p class="font-bold text-primary-60 receipt-total">Rp{{ number_format($transaction->total, 0, ',', '.') }}</p>
                     </div>
+
+                    @if($transaction->payment_method === 'cash' && $transaction->cash_received !== null)
+                    <div class="flex items-center justify-between">
+                        <p class="text-gray-600 receipt-muted">Tunai</p>
+                        <p class="font-semibold text-gray-900">Rp{{ number_format($transaction->cash_received, 0, ',', '.') }}</p>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <p class="text-gray-600 receipt-muted">Kembalian</p>
+                        <p class="font-semibold text-gray-900">Rp{{ number_format($transaction->cash_change ?? 0, 0, ',', '.') }}</p>
+                    </div>
+                    @endif
 
                     @if($transaction->points_earned > 0)
                     <div class="mt-2 flex items-center justify-center rounded-lg bg-green-50 p-2 text-center text-sm font-medium text-green-700">

@@ -18,7 +18,10 @@
         $canViewTargets = $canEditAll || (auth()->user()?->can('settings.targets.view') ?? false) || (auth()->user()?->can('settings.targets.edit') ?? false);
         $canEditTargets = $canEditAll || (auth()->user()?->can('settings.targets.edit') ?? false);
 
-        $canViewAnySection = $canViewStore || $canViewPrinters || $canViewSystem || $canViewPoints || $canViewTargets;
+        $canViewWhatsapp = $canEditAll || (auth()->user()?->can('settings.whatsapp.view') ?? false) || (auth()->user()?->can('settings.whatsapp.edit') ?? false);
+        $canEditWhatsapp = $canEditAll || (auth()->user()?->can('settings.whatsapp.edit') ?? false);
+
+        $canViewAnySection = $canViewStore || $canViewPrinters || $canViewSystem || $canViewPoints || $canViewTargets || $canViewWhatsapp;
     @endphp
 
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -84,6 +87,16 @@
                         ])>
                             Target Bulanan
                             <p class="mt-1 text-xs font-normal opacity-90">Target pendapatan per bulan untuk analisa.</p>
+                        </button>
+                    @endif
+                    @if ($canViewWhatsapp)
+                        <button type="button" wire:click="setSection('whatsapp')" @class([
+                            'w-full rounded-xl border px-4 py-3 text-left text-sm font-semibold transition',
+                            'bg-brand-500 text-white border-brand-600' => $activeSection === 'whatsapp',
+                            'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-white/[0.03]' => $activeSection !== 'whatsapp',
+                        ])>
+                            WhatsApp
+                            <p class="mt-1 text-xs font-normal opacity-90">Sambungkan nomor WA untuk kirim nota.</p>
                         </button>
                     @endif
                 </div>
@@ -712,6 +725,103 @@
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
+            @elseif ($activeSection === 'whatsapp')
+                <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+                    <div class="border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+                        <h3 class="text-base font-semibold text-gray-800 dark:text-white/90">WhatsApp</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Sambungkan nomor WhatsApp toko untuk mengirim nota ke pelanggan.</p>
+                    </div>
+                    <div class="space-y-5 p-5">
+                        <div class="flex items-center justify-between rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+                            <div>
+                                <p class="text-sm font-medium text-gray-800 dark:text-white/90">Status Sesi</p>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    @if ($whatsapp_linked_phone)
+                                        Nomor terhubung: <span class="font-medium text-gray-700 dark:text-gray-300">{{ $whatsapp_linked_phone }}</span>
+                                    @else
+                                        Belum ada nomor terhubung.
+                                    @endif
+                                </p>
+                                @if ($whatsapp_last_error)
+                                    <p class="mt-1 text-xs text-error-600 dark:text-error-400">{{ $whatsapp_last_error }}</p>
+                                @endif
+                            </div>
+                            <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $this->whatsappStatusColorClasses() }}">
+                                {{ $this->whatsappStatusLabel() }}
+                            </span>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            @if ($canEditWhatsapp)
+                                @if ($whatsapp_status !== 'ready')
+                                    <button type="button" wire:click="connectWhatsapp" wire:loading.attr="disabled" wire:target="connectWhatsapp"
+                                        class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold text-white transition disabled:opacity-60">
+                                        <svg wire:loading wire:target="connectWhatsapp" class="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                        </svg>
+                                        <span wire:loading.remove wire:target="connectWhatsapp">Sambungkan / Scan QR</span>
+                                        <span wire:loading wire:target="connectWhatsapp">Menyambungkan…</span>
+                                    </button>
+                                @else
+                                    <button type="button" wire:click="disconnectWhatsapp" wire:loading.attr="disabled" wire:target="disconnectWhatsapp"
+                                        class="shadow-theme-xs inline-flex h-10 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                                        Putuskan
+                                    </button>
+                                @endif
+                                @if ($whatsapp_status !== 'not_configured')
+                                    <button type="button"
+                                        x-on:click.prevent="$dispatch('confirm', { message: 'Reset sesi WhatsApp? Anda perlu scan QR ulang.', method: 'forgetWhatsappSession', args: [] })"
+                                        class="inline-flex h-10 items-center justify-center rounded-lg border border-error-200 bg-error-50 px-4 text-sm font-semibold text-error-600 hover:bg-error-100 dark:border-error-500/20 dark:bg-error-500/10 dark:text-error-500">
+                                        Reset Sesi
+                                    </button>
+                                @endif
+                            @endif
+                        </div>
+
+                        @if ($whatsappQrPanelOpen)
+                            <div class="rounded-xl border border-gray-200 p-5 text-center dark:border-gray-800" wire:poll.2s="refreshWhatsappStatus">
+                                <h4 class="text-sm font-semibold text-gray-800 dark:text-white/90">Scan QR di WhatsApp</h4>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {{ $this->whatsappStatusLabel() }}
+                                </p>
+                                <div class="mt-4 flex items-center justify-center">
+                                    @if ($whatsappQrDataUri)
+                                        <img src="{{ $whatsappQrDataUri }}" alt="QR WhatsApp" class="h-56 w-56 rounded-lg border border-gray-200 dark:border-gray-700" />
+                                    @else
+                                        <div class="flex h-56 w-56 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 text-xs text-gray-400 dark:border-gray-700">
+                                            <svg class="h-6 w-6 animate-spin" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                            </svg>
+                                            Menyiapkan QR…
+                                        </div>
+                                    @endif
+                                </div>
+                                <button type="button" wire:click="$set('whatsappQrPanelOpen', false)"
+                                    class="mt-5 inline-flex h-10 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                                    Tutup
+                                </button>
+                            </div>
+                        @endif
+
+                        <form wire:submit.prevent="saveWhatsappToggles" class="space-y-4 border-t border-gray-200 pt-5 dark:border-gray-800">
+                            <label class="flex items-center gap-3">
+                                <input type="checkbox" wire:model="whatsapp_is_enabled" @disabled(! $canEditWhatsapp) class="h-4 w-4 rounded border-gray-300 text-brand-600" />
+                                <span class="text-sm text-gray-700 dark:text-gray-300">Aktifkan pengiriman nota via WhatsApp</span>
+                            </label>
+                            <label class="flex items-center gap-3">
+                                <input type="checkbox" wire:model="whatsapp_send_on_checkout_default" @disabled(! $canEditWhatsapp) class="h-4 w-4 rounded border-gray-300 text-brand-600" />
+                                <span class="text-sm text-gray-700 dark:text-gray-300">Centang otomatis "Kirim struk ke WhatsApp" saat checkout POS</span>
+                            </label>
+                            @if ($canEditWhatsapp)
+                                <button type="submit" class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition">
+                                    Simpan
+                                </button>
+                            @endif
+                        </form>
                     </div>
                 </div>
             @endif

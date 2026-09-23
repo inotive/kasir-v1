@@ -49,6 +49,7 @@ class RolePermissionSeeder extends Seeder
             'transactions.refund',
             'transactions.void.approve',
             'transactions.refund.approve',
+            'transactions.whatsapp.send',
 
             // Members
             'members.view',
@@ -126,6 +127,8 @@ class RolePermissionSeeder extends Seeder
             'settings.points.edit',
             'settings.targets.view',
             'settings.targets.edit',
+            'settings.whatsapp.view',
+            'settings.whatsapp.edit',
         ];
 
         $permissions = array_values(array_unique($permissions));
@@ -165,6 +168,7 @@ class RolePermissionSeeder extends Seeder
             'transactions.void',
             'transactions.void.approve',
             'transactions.refund.approve',
+            'transactions.whatsapp.send',
             'members.view',
             'members.create',
             'members.edit',
@@ -220,6 +224,7 @@ class RolePermissionSeeder extends Seeder
             'transactions.details',
             'transactions.pii.view',
             'transactions.print',
+            'transactions.whatsapp.send',
             'settings.printers.devices',
             'members.view',
             'members.create',
@@ -269,6 +274,7 @@ class RolePermissionSeeder extends Seeder
             'transactions.details',
             'transactions.pii.view',
             'transactions.print',
+            'transactions.whatsapp.send',
             'reports.view',
             'reports.sales',
             'reports.performance',

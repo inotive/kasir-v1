@@ -2,20 +2,34 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Traits\BelongsToTenant;
 use Illuminate\Support\Str;
 
 class Transaction extends Model
 {
     use BelongsToTenant, HasFactory;
 
+    public function customerLabel(bool $showPhone = false): string
+    {
+        if ($this->member) {
+            return $this->member->displayLabel($showPhone);
+        }
+
+        $name = (string) ($this->name ?? '-');
+        $phone = trim((string) $this->phone);
+
+        return $showPhone && $phone !== '' ? $name.' ('.$phone.')' : $name;
+    }
+
     protected $fillable = [
         'code',
         'member_id',
+        'cashier_user_id',
         'channel',
         'name',
         'phone',
@@ -48,6 +62,10 @@ class Transaction extends Model
         'order_status',
         'paid_at',
         'receipt_emailed_at',
+        'wa_receipt_sent_at',
+        'wa_receipt_status',
+        'wa_receipt_error',
+        'wa_receipt_token',
         'external_id',
         'is_midtrans_processed',
         'midtrans_snap_token',
@@ -76,6 +94,7 @@ class Transaction extends Model
             'manual_discount_value' => 'integer',
             'manual_discount_amount' => 'integer',
             'manual_discount_by_user_id' => 'integer',
+            'cashier_user_id' => 'integer',
             'discount_total_amount' => 'integer',
             'point_discount_amount' => 'integer',
             'points_redeemed' => 'integer',
@@ -94,6 +113,7 @@ class Transaction extends Model
             'refunded_at' => 'datetime',
             'paid_at' => 'datetime',
             'receipt_emailed_at' => 'datetime',
+            'wa_receipt_sent_at' => 'datetime',
             'midtrans_payload' => 'array',
             'kitchen_processed_at' => 'datetime',
         ];
@@ -107,6 +127,76 @@ class Transaction extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class);
+    }
+
+    public function cashier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cashier_user_id');
+    }
+
+    public function cashierSourceLabel(): string
+    {
+        if ($this->cashier) {
+            return (string) $this->cashier->name;
+        }
+
+        if ((string) $this->channel === 'self_order' && (string) $this->payment_method === 'qris_midtrans') {
+            return 'Self Order Otomatis';
+        }
+
+        return 'Tidak tercatat';
+    }
+
+    public function scopeForCashierSource(Builder $query, string $filter): Builder
+    {
+        $filter = trim($filter);
+
+        if ($filter === 'automatic') {
+            return $query
+                ->whereNull('cashier_user_id')
+                ->where('channel', 'self_order')
+                ->where('payment_method', 'qris_midtrans');
+        }
+
+        if ($filter === 'unassigned') {
+            return $query
+                ->whereNull('cashier_user_id')
+                ->where(function (Builder $q): void {
+                    $q->where('channel', '!=', 'self_order')
+                        ->orWhere('payment_method', '!=', 'qris_midtrans');
+                });
+        }
+
+        if (ctype_digit($filter) && (int) $filter > 0) {
+            return $query->where('cashier_user_id', (int) $filter);
+        }
+
+        return $query;
+    }
+
+    public function scopeWithinOperationalDates(Builder $query, ?string $from, ?string $to): Builder
+    {
+        if ($from) {
+            $query->where(function (Builder $q) use ($from): void {
+                $q->where(function (Builder $paid) use ($from): void {
+                    $paid->whereNotNull('paid_at')->whereDate('paid_at', '>=', $from);
+                })->orWhere(function (Builder $created) use ($from): void {
+                    $created->whereNull('paid_at')->whereDate('created_at', '>=', $from);
+                });
+            });
+        }
+
+        if ($to) {
+            $query->where(function (Builder $q) use ($to): void {
+                $q->where(function (Builder $paid) use ($to): void {
+                    $paid->whereNotNull('paid_at')->whereDate('paid_at', '<=', $to);
+                })->orWhere(function (Builder $created) use ($to): void {
+                    $created->whereNull('paid_at')->whereDate('created_at', '<=', $to);
+                });
+            });
+        }
+
+        return $query;
     }
 
     public function transactionItems(): HasMany

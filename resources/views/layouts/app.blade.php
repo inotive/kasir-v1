@@ -25,11 +25,11 @@
 
     <script defer src="{{ asset('js/notification-system/notification-manager.js') }}"></script>
 
-    <script defer src="{{ asset('js/printer-system/bluetooth-service.js') }}"></script>
-    <script defer src="{{ asset('js/printer-system/receipt-templates.js') }}"></script>
-    <script defer src="{{ asset('js/printer-system/print-queue.js') }}"></script>
-    <script defer src="{{ asset('js/printer-system/printer-manager.js') }}"></script>
-    <script defer src="{{ asset('js/printer-system/printer-ui.js') }}"></script>
+    <script defer src="{{ asset('js/printer-system/bluetooth-service.js') }}?v={{ filemtime(public_path('js/printer-system/bluetooth-service.js')) }}"></script>
+    <script defer src="{{ asset('js/printer-system/receipt-templates.js') }}?v={{ filemtime(public_path('js/printer-system/receipt-templates.js')) }}"></script>
+    <script defer src="{{ asset('js/printer-system/print-queue.js') }}?v={{ filemtime(public_path('js/printer-system/print-queue.js')) }}"></script>
+    <script defer src="{{ asset('js/printer-system/printer-manager.js') }}?v={{ filemtime(public_path('js/printer-system/printer-manager.js')) }}"></script>
+    <script defer src="{{ asset('js/printer-system/printer-ui.js') }}?v={{ filemtime(public_path('js/printer-system/printer-ui.js')) }}"></script>
 
     <!-- Alpine.js -->
     {{-- <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script> --}}
@@ -305,7 +305,7 @@
                                             Cetak Kasir Saja
                                         </button>
                                     </div>
-                                    <button type="button" :aria-disabled="!canPrintStepThrough()" @click="printStepThrough()" class="shadow-theme-xs inline-flex h-11 w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]" :class="!canPrintStepThrough() ? 'opacity-50' : ''">
+                                    <button type="button" :aria-disabled="!canPrintStepThrough()" @click="printStepThrough()" class="shadow-theme-xs inline-flex h-11 w-full items-center justify-center rounded-lg border border-gray-300 bg-gray-200 px-4 text-sm font-semibold text-gray-800 hover:bg-gray-300 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600" :class="!canPrintStepThrough() ? 'opacity-50' : ''">
                                         Cetak Bergantian
                                     </button>
                                 </div>

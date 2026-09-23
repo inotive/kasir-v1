@@ -5,7 +5,9 @@ namespace App\Livewire\Transaction;
 use App\Models\Member;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
+use App\Models\User;
 use App\Services\Printing\PosPrintPayloadService;
+use App\Services\Whatsapp\WhatsappReceiptService;
 use App\Support\Finance\NetSales;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -35,20 +37,28 @@ class TransactionsPage extends Component
 
     public string $orderType = '';
 
-    public string $sortField = 'created_at';
+    public string $cashierFilter = '';
+
+    public string $sortField = 'operational_date';
 
     public bool $sortAsc = false;
 
     public int $perPage = 15;
 
     #[Url]
-    public ?int $memberId = null;
+    public array $memberIds = [];
 
     public function mount(): void
     {
         $this->authorize('transactions.view');
 
-        if ($this->memberId) {
+        // Keep existing links/bookmarks from the single-member filter working.
+        if ($this->memberIds === [] && request()->filled('memberId')) {
+            $this->memberIds = [request()->query('memberId')];
+        }
+        $this->validateMemberIds();
+
+        if (! empty($this->memberIds)) {
             $this->rangePreset = 'custom';
             $this->fromDate = null;
             $this->toDate = null;
@@ -59,9 +69,24 @@ class TransactionsPage extends Component
         $this->setRange('today');
     }
 
+    public function updatedMemberIds(): void
+    {
+        $this->validateMemberIds();
+        $this->resetPage();
+    }
+
+    private function validateMemberIds(): void
+    {
+        $this->validate([
+            'memberIds' => ['array'],
+            'memberIds.*' => ['required', 'integer', 'min:1'],
+        ]);
+        $this->memberIds = array_values(array_unique(array_map('intval', $this->memberIds)));
+    }
+
     public function clearMemberFilter(): void
     {
-        $this->memberId = null;
+        $this->memberIds = [];
         $this->setRange('today');
     }
 
@@ -95,8 +120,17 @@ class TransactionsPage extends Component
         $this->resetPage();
     }
 
+    public function updatedCashierFilter(): void
+    {
+        $this->resetPage();
+    }
+
     public function sortBy(string $field): void
     {
+        if (! in_array($field, ['operational_date', 'total'], true)) {
+            return;
+        }
+
         if ($this->sortField === $field) {
             $this->sortAsc = ! $this->sortAsc;
         } else {
@@ -153,12 +187,18 @@ class TransactionsPage extends Component
         $canViewPii = auth()->user()?->can('transactions.pii.view') ?? false;
 
         $query = Transaction::query()
-            ->with(['member', 'diningTable'])
+            ->with(['member', 'diningTable', 'cashier'])
             ->when($this->search !== '', function (Builder $query) use ($canViewPii): void {
                 $term = '%'.$this->search.'%';
                 $query->where(function (Builder $q) use ($term, $canViewPii): void {
                     $q->where('code', 'like', $term)
-                        ->orWhere('name', 'like', $term);
+                        ->orWhere('name', 'like', $term)
+                        ->orWhereHas('member', function (Builder $member) use ($term, $canViewPii): void {
+                            $member->where('name', 'like', $term);
+                            if ($canViewPii) {
+                                $member->orWhere('phone', 'like', $term);
+                            }
+                        });
 
                     if ($canViewPii) {
                         $q->orWhere('phone', 'like', $term)
@@ -170,15 +210,9 @@ class TransactionsPage extends Component
             ->when($this->paymentStatus !== '', fn (Builder $query) => $query->where('payment_status', $this->paymentStatus))
             ->when($applyPaymentMethodFilter && $this->paymentMethod !== '', fn (Builder $query) => $query->where('payment_method', $this->paymentMethod))
             ->when($this->orderType !== '', fn (Builder $query) => $query->where('order_type', $this->orderType))
-            ->when($this->memberId, fn (Builder $query) => $query->where('member_id', $this->memberId));
-
-        if ($this->fromDate) {
-            $query->whereDate('created_at', '>=', $this->fromDate);
-        }
-
-        if ($this->toDate) {
-            $query->whereDate('created_at', '<=', $this->toDate);
-        }
+            ->when(! empty($this->memberIds), fn (Builder $query) => $query->whereIn('member_id', $this->memberIds))
+            ->when($this->cashierFilter !== '', fn (Builder $query) => $query->forCashierSource($this->cashierFilter))
+            ->withinOperationalDates($this->fromDate, $this->toDate);
 
         return $query;
     }
@@ -212,6 +246,38 @@ class TransactionsPage extends Component
     protected function orderTypeOptions(): array
     {
         return ['take_away', 'dine_in'];
+    }
+
+    protected function memberOptions(): array
+    {
+        $canViewPii = auth()->user()?->can('transactions.pii.view') ?? false;
+
+        return Member::query()
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name', 'phone'])
+            ->mapWithKeys(fn (Member $member) => [$member->id => $member->displayLabel($canViewPii)])
+            ->all();
+    }
+
+    protected function cashierOptions(): array
+    {
+        $usedCashierIds = Transaction::query()
+            ->whereNotNull('cashier_user_id')
+            ->select('cashier_user_id');
+
+        return User::query()
+            ->where(function (Builder $query) use ($usedCashierIds): void {
+                $query->where('is_active', true)
+                    ->orWhereIn('id', $usedCashierIds);
+            })
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name', 'is_active'])
+            ->mapWithKeys(fn (User $user) => [
+                (string) $user->id => (string) $user->name.($user->is_active ? '' : ' (nonaktif)'),
+            ])
+            ->all();
     }
 
     protected function stats(): array
@@ -312,6 +378,29 @@ class TransactionsPage extends Component
         $this->dispatch('pos-print-modal', payload: $payload, context: 'transactions');
     }
 
+    public function sendReceiptWhatsApp(int $transactionId): void
+    {
+        $actor = auth()->user();
+        if (! $actor || ! $actor->can('transactions.whatsapp.send')) {
+            $this->dispatch('toast', type: 'error', message: 'Anda tidak punya akses untuk mengirim struk WA.');
+
+            return;
+        }
+
+        $transaction = Transaction::query()->with('member')->find($transactionId);
+        if (! $transaction) {
+            $this->dispatch('toast', type: 'error', message: 'Transaksi tidak ditemukan.');
+
+            return;
+        }
+
+        $ok = app(WhatsappReceiptService::class)->resend($transaction, $actor->id);
+
+        $this->dispatch('toast', type: $ok ? 'success' : 'error', message: $ok
+            ? 'Struk WA sedang dikirim.'
+            : 'Gagal mengirim struk WA (cek nomor pelanggan/pengaturan WhatsApp tenant).');
+    }
+
     public function render(): View
     {
         $this->authorize('transactions.view');
@@ -319,25 +408,38 @@ class TransactionsPage extends Component
         $paymentStatusOptions = $this->paymentStatusOptions();
         $paymentMethodOptions = $this->paymentMethodOptions();
 
-        $transactions = $this->baseQuery()
+        $transactionsQuery = $this->baseQuery()
             ->withCount('transactionItems')
             ->withSum('transactionItems as items_quantity_sum', 'quantity')
-            ->withSum('transactionItems as hpp_total_sum', 'hpp_total')
-            ->orderBy($this->sortField, $this->sortAsc ? 'asc' : 'desc')
-            ->paginate($this->perPage);
+            ->withSum('transactionItems as hpp_total_sum', 'hpp_total');
+
+        if ($this->sortField === 'operational_date') {
+            $transactionsQuery->orderByRaw('COALESCE(paid_at, created_at) '.($this->sortAsc ? 'asc' : 'desc'));
+        } else {
+            $transactionsQuery->orderBy($this->sortField, $this->sortAsc ? 'asc' : 'desc');
+        }
+
+        $transactions = $transactionsQuery->paginate($this->perPage);
 
         $stats = $this->stats();
         $paymentMethodStats = $this->paymentMethodStats();
-        $filteredMember = $this->memberId ? Member::query()->find($this->memberId) : null;
+        $memberOptions = $this->memberOptions();
+        $cashierOptions = $this->cashierOptions();
+        $filteredMemberLabels = array_map(
+            fn ($id) => $memberOptions[$id] ?? 'Member tidak ditemukan',
+            $this->memberIds,
+        );
 
         return view('livewire.transactions.transactions-page', [
             'transactions' => $transactions,
             'paymentStatusOptions' => $paymentStatusOptions,
             'paymentMethodOptions' => $paymentMethodOptions,
             'orderTypeOptions' => $this->orderTypeOptions(),
+            'memberOptions' => $memberOptions,
+            'cashierOptions' => $cashierOptions,
             'stats' => $stats,
             'paymentMethodStats' => $paymentMethodStats,
-            'filteredMember' => $filteredMember,
+            'filteredMemberLabels' => $filteredMemberLabels,
         ])->layout('layouts.app', ['title' => $this->title]);
     }
 }

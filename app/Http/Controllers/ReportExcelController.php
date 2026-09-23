@@ -8,6 +8,7 @@ use App\Exports\Inventory\ValuationExport;
 use App\Exports\Reports\ManualDiscountsExport;
 use App\Exports\Reports\MemberPerformanceExport;
 use App\Exports\Reports\SalesProfitExport;
+use App\Exports\Reports\TransactionsExport;
 use App\Models\Ingredient;
 use App\Models\InventoryMovement;
 use App\Models\Setting;
@@ -15,21 +16,31 @@ use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Support\Finance\NetSales;
+use App\Support\Products\ItemNameFormatter;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportExcelController extends Controller
 {
     private function ensureExcelAvailable(): void
     {
-        $excelFacade = \Maatwebsite\Excel\Facades\Excel::class;
-        $fromArray = \Maatwebsite\Excel\Concerns\FromArray::class;
+        $excelFacade = Excel::class;
+        $fromArray = FromArray::class;
 
         if (! class_exists($excelFacade) || ! interface_exists($fromArray)) {
             abort(503, 'Fitur export Excel belum tersedia di server ini. Jalankan composer install untuk menginstal maatwebsite/excel.');
+        }
+    }
+
+    private function ensurePdfAvailable(): void
+    {
+        if (! class_exists(Pdf::class)) {
+            abort(503, 'Fitur export PDF belum tersedia di server ini. Jalankan composer install untuk menginstal barryvdh/laravel-dompdf.');
         }
     }
 
@@ -659,5 +670,164 @@ class ReportExcelController extends Controller
         ], $rows->all());
 
         return Excel::download($export, $filename);
+    }
+
+    /**
+     * Mirrors TransactionsPage::baseQuery() + stats() so the export always
+     * matches exactly what the cashier/manager sees on the Transaksi page
+     * for the filters they currently have applied.
+     */
+    private function buildTransactionsData(Request $request): array
+    {
+        $validated = $request->validate([
+            'memberIds' => ['sometimes', 'array'],
+            'memberIds.*' => ['required', 'integer', 'min:1'],
+            'memberId' => ['nullable', 'integer', 'min:1'],
+            'fromDate' => ['nullable', 'date_format:Y-m-d'],
+            'toDate' => ['nullable', 'date_format:Y-m-d'],
+            'cashierFilter' => ['nullable', 'string', 'max:50', 'regex:/^(automatic|unassigned|[1-9][0-9]*)$/'],
+        ]);
+        $search = trim((string) $request->query('search'));
+        $fromDate = trim((string) $request->query('fromDate'));
+        $toDate = trim((string) $request->query('toDate'));
+        $paymentStatus = trim((string) $request->query('paymentStatus'));
+        $paymentMethod = trim((string) $request->query('paymentMethod'));
+        $orderType = trim((string) $request->query('orderType'));
+        $cashierFilter = trim((string) $request->query('cashierFilter'));
+        $memberIds = $validated['memberIds'] ?? [];
+        if ($memberIds === [] && ! empty($validated['memberId'])) {
+            $memberIds = [$validated['memberId']];
+        }
+
+        if (! $request->query->has('fromDate') && $memberIds === []) {
+            $fromDate = CarbonImmutable::now()->format('Y-m-d');
+        }
+        if (! $request->query->has('toDate') && $memberIds === []) {
+            $toDate = CarbonImmutable::now()->format('Y-m-d');
+        }
+
+        $canViewPii = $request->user()?->can('transactions.pii.view') ?? false;
+
+        $query = Transaction::query()
+            ->with(['member', 'cashier', 'transactionItems.product', 'transactionItems.variant', 'transactionItems.itemAddons.addon'])
+            ->when($search !== '', function (Builder $b) use ($search, $canViewPii): void {
+                $term = '%'.$search.'%';
+                $b->where(function (Builder $q) use ($term, $canViewPii): void {
+                    $q->where('code', 'like', $term)
+                        ->orWhere('name', 'like', $term)
+                        ->orWhereHas('member', function (Builder $member) use ($term, $canViewPii): void {
+                            $member->where('name', 'like', $term);
+                            if ($canViewPii) {
+                                $member->orWhere('phone', 'like', $term);
+                            }
+                        });
+
+                    if ($canViewPii) {
+                        $q->orWhere('phone', 'like', $term)
+                            ->orWhere('email', 'like', $term)
+                            ->orWhere('external_id', 'like', $term);
+                    }
+                });
+            })
+            ->when($paymentStatus !== '', fn (Builder $b) => $b->where('payment_status', $paymentStatus))
+            ->when($paymentMethod !== '', fn (Builder $b) => $b->where('payment_method', $paymentMethod))
+            ->when($orderType !== '', fn (Builder $b) => $b->where('order_type', $orderType))
+            ->when($memberIds !== [], fn (Builder $b) => $b->whereIn('member_id', $memberIds))
+            ->when($cashierFilter !== '', fn (Builder $b) => $b->forCashierSource($cashierFilter))
+            ->withinOperationalDates($fromDate !== '' ? $fromDate : null, $toDate !== '' ? $toDate : null);
+
+        $txCount = (int) (clone $query)->count();
+
+        // Net revenue must come from the same filtered set as $rows, not a
+        // blanket date-range helper, otherwise it wouldn't match a filter
+        // like paymentMethod=cash applied on the Transaksi page.
+        $paidBase = (clone $query)->whereIn('payment_status', NetSales::postedPaymentStatuses());
+        $paidCount = (int) (clone $paidBase)->count();
+        $netSub = DB::table('transactions as t')
+            ->join('transaction_items as ti', 't.id', '=', 'ti.transaction_id')
+            ->whereIn('t.id', (clone $paidBase)->select('id'))
+            ->selectRaw('t.id as tx_id')
+            ->selectRaw('COALESCE(t.refunded_amount, 0) as refunded_amount')
+            ->selectRaw('COALESCE(SUM('.NetSales::itemNetExpr('ti').'), 0) as item_net')
+            ->groupBy('tx_id', 'refunded_amount');
+        $netRevenue = (float) round((float) (DB::query()
+            ->fromSub($netSub, 'x')
+            ->selectRaw('COALESCE(SUM('.NetSales::netPerTransactionExpr('x.item_net', 'x.refunded_amount').'), 0) as revenue')
+            ->value('revenue') ?? 0));
+        $avgOrder = $paidCount > 0 ? $netRevenue / $paidCount : 0.0;
+
+        $itemsBase = (clone $query)->whereIn('payment_status', ['paid', 'settlement', 'capture', 'success', 'partial_refund']);
+        $itemsSold = (int) DB::table('transaction_items')
+            ->whereIn('transaction_id', (clone $itemsBase)->select('id'))
+            ->sum('quantity');
+
+        $rows = $query->orderByRaw('COALESCE(paid_at, created_at)')->get()->map(fn (Transaction $t) => [
+            'code' => (string) ($t->code ?? ''),
+            'created_at' => (string) (($t->paid_at ?? $t->created_at)?->format('Y-m-d H:i:s') ?? ''),
+            'customer_name' => $t->customerLabel($canViewPii),
+            'cashier_name' => $t->cashierSourceLabel(),
+            'phone' => $canViewPii ? (string) ($t->member?->phone ?? $t->phone ?? '') : '',
+            'payment_method' => (string) ($t->payment_method ?? ''),
+            'order_type' => (string) ($t->order_type ?? ''),
+            'payment_status' => (string) ($t->payment_status ?? ''),
+            'total' => (float) ($t->total ?? 0),
+            'products' => $t->transactionItems->map(function ($item) {
+                $qty = (int) $item->quantity;
+                $line = ItemNameFormatter::itemDisplayLine($item);
+
+                return $qty > 1 ? $qty.'x '.$line : $line;
+            })->implode(', '),
+        ])->all();
+
+        $periodLabel = match (true) {
+            $fromDate === '' && $toDate === '' => 'Semua tanggal',
+            $fromDate === '' => 'Sampai '.CarbonImmutable::parse($toDate)->format('d M Y'),
+            $toDate === '' => 'Sejak '.CarbonImmutable::parse($fromDate)->format('d M Y'),
+            $fromDate === $toDate => CarbonImmutable::parse($fromDate)->format('d M Y'),
+            default => CarbonImmutable::parse($fromDate)->format('d M Y').' – '.CarbonImmutable::parse($toDate)->format('d M Y'),
+        };
+        $meta = $this->meta('Laporan Transaksi', $periodLabel);
+        $meta['cashierLabel'] = match ($cashierFilter) {
+            '' => 'Semua Kasir/Sumber',
+            'automatic' => 'Self Order Otomatis',
+            'unassigned' => 'Tidak Tercatat',
+            default => (string) (User::query()->whereKey((int) $cashierFilter)->value('name') ?? 'Kasir tidak ditemukan'),
+        };
+
+        return [
+            'meta' => $meta,
+            'summary' => [
+                'txCount' => $txCount,
+                'netRevenue' => $netRevenue,
+                'itemsSold' => $itemsSold,
+                'avgOrder' => $avgOrder,
+            ],
+            'rows' => $rows,
+            'filenameBase' => 'laporan-transaksi_'.($fromDate ?: 'awal').'_'.($toDate ?: 'akhir'),
+        ];
+    }
+
+    public function transactionsExcel(Request $request)
+    {
+        $this->authorizeAny($request, ['transactions.view']);
+        $this->ensureExcelAvailable();
+
+        $data = $this->buildTransactionsData($request);
+
+        $export = new TransactionsExport($data['meta'], $data['summary'], $data['rows']);
+
+        return Excel::download($export, $data['filenameBase'].'.xlsx');
+    }
+
+    public function transactionsPdf(Request $request)
+    {
+        $this->authorizeAny($request, ['transactions.view']);
+        $this->ensurePdfAvailable();
+
+        $data = $this->buildTransactionsData($request);
+
+        return Pdf::loadView('exports.reports.transactions-pdf', $data)
+            ->setPaper('a4', 'landscape')
+            ->download($data['filenameBase'].'.pdf');
     }
 }

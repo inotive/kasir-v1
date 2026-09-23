@@ -358,6 +358,31 @@ return [
                 'transactions.pii.view',
             ],
         ],
+        'transactions.whatsapp.send' => [
+            'summary' => 'Mengizinkan mengirim atau mengirim ulang struk transaksi ke WhatsApp pelanggan.',
+            'grants' => [
+                'Mengirim struk via WhatsApp saat checkout POS (jika WhatsApp aktif untuk tenant)',
+                'Mengirim ulang struk via WhatsApp dari halaman detail/daftar transaksi',
+            ],
+            'not_grants' => [
+                'Mengelola/menyambungkan sesi WhatsApp tenant tanpa settings.whatsapp.edit',
+                'Melihat PII pelanggan tanpa transactions.pii.view',
+            ],
+            'affected_areas' => [
+                'POS (checkbox kirim WA saat checkout)',
+                'Transaksi (tombol Kirim Ulang via WA)',
+            ],
+            'risk' => [
+                'sensitive_data' => true,
+                'financial_risk' => false,
+                'system_risk' => false,
+            ],
+            'related_permissions' => [
+                'transactions.view',
+                'transactions.details',
+                'transactions.print',
+            ],
+        ],
         'transactions.void' => [
             'summary' => 'Mengizinkan melakukan void transaksi (pembatalan) sesuai kebijakan sistem.',
             'grants' => [
@@ -1674,6 +1699,49 @@ return [
             ],
             'related_permissions' => [
                 'settings.targets.view',
+            ],
+        ],
+        'settings.whatsapp.view' => [
+            'summary' => 'Mengizinkan melihat halaman pengaturan WhatsApp (status sesi, nomor terhubung).',
+            'grants' => [
+                'Melihat tab pengaturan WhatsApp beserta status koneksi sesi',
+            ],
+            'not_grants' => [
+                'Menyambungkan/memutuskan sesi WhatsApp tanpa settings.whatsapp.edit',
+            ],
+            'affected_areas' => [
+                'Pengaturan WhatsApp',
+            ],
+            'risk' => [
+                'sensitive_data' => false,
+                'financial_risk' => false,
+                'system_risk' => false,
+            ],
+            'related_permissions' => [
+                'settings.whatsapp.edit',
+            ],
+        ],
+        'settings.whatsapp.edit' => [
+            'summary' => 'Mengizinkan mengelola sesi WhatsApp tenant: menyambungkan (scan QR), memutuskan, atau menghapus sesi, serta mengatur toggle aktif/nonaktif dan default kirim-saat-checkout.',
+            'grants' => [
+                'Membuat/menyambungkan sesi WhatsApp OpenWA untuk tenant (scan QR)',
+                'Memutuskan (logout) atau menghapus sesi WhatsApp tenant',
+                'Mengubah status aktif/nonaktif fitur WhatsApp dan default checkbox kirim-saat-checkout',
+            ],
+            'not_grants' => [
+                'Mengirim/mengirim ulang struk transaksi individual tanpa transactions.whatsapp.send',
+            ],
+            'affected_areas' => [
+                'Pengaturan WhatsApp',
+            ],
+            'risk' => [
+                'sensitive_data' => true,
+                'financial_risk' => false,
+                'system_risk' => true,
+            ],
+            'related_permissions' => [
+                'settings.whatsapp.view',
+                'transactions.whatsapp.send',
             ],
         ],
         'settings.edit' => [

@@ -5,6 +5,8 @@ namespace App\Livewire\Reports;
 use App\Models\OperatingExpense;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\Number\QuantityFormatter;
+use App\Support\Number\QuantityParser;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -38,7 +40,11 @@ class OperatingExpensesPage extends Component
 
     public string $category = '';
 
-    public ?int $amount = null;
+    public ?string $quantity = '1';
+
+    public ?string $unit = null;
+
+    public ?int $unitCost = null;
 
     public ?string $note = null;
 
@@ -124,7 +130,7 @@ class OperatingExpensesPage extends Component
     {
         $this->authorize('reports.expenses.manage');
 
-        $this->reset(['editingId', 'category', 'amount', 'note']);
+        $this->reset(['editingId', 'category', 'quantity', 'unit', 'unitCost', 'note']);
         if (! $this->expenseDate) {
             $this->expenseDate = CarbonImmutable::now()->format('Y-m-d');
         }
@@ -141,7 +147,10 @@ class OperatingExpensesPage extends Component
         $this->editingId = (int) $row->id;
         $this->expenseDate = optional($row->expense_date)->format('Y-m-d');
         $this->category = (string) $row->category;
-        $this->amount = (int) $row->amount;
+        $hasBreakdown = $row->quantity !== null && $row->unit_cost !== null;
+        $this->quantity = $hasBreakdown ? QuantityFormatter::format((float) $row->quantity) : '1';
+        $this->unit = $row->unit;
+        $this->unitCost = $hasBreakdown ? (int) round((float) $row->unit_cost) : (int) $row->amount;
         $this->note = $row->note;
         $this->resetValidation();
         $this->formModalOpen = true;
@@ -153,6 +162,14 @@ class OperatingExpensesPage extends Component
         $this->resetValidation();
     }
 
+    public function unitSubtotal(): int
+    {
+        $qty = QuantityParser::parse($this->quantity) ?? 0.0;
+        $unitCost = (float) ($this->unitCost ?? 0);
+
+        return (int) round($qty * $unitCost);
+    }
+
     public function save(): void
     {
         $this->authorize('reports.expenses.manage');
@@ -160,14 +177,30 @@ class OperatingExpensesPage extends Component
         $validated = $this->validate([
             'expenseDate' => ['required', 'date'],
             'category' => ['required', 'string', 'max:100'],
-            'amount' => ['required', 'integer', 'min:0'],
+            'quantity' => ['required', 'string'],
+            'unit' => ['nullable', 'string', 'max:50'],
+            'unitCost' => ['required', 'integer', 'min:0'],
             'note' => ['nullable', 'string'],
         ]);
+
+        $quantity = QuantityParser::parse($validated['quantity']);
+        if ($quantity === null || $quantity <= 0) {
+            $this->addError('quantity', 'Qty tidak valid.');
+
+            return;
+        }
+
+        $unit = trim((string) ($validated['unit'] ?? ''));
+        $unitCost = (int) $validated['unitCost'];
+        $amount = (int) round($quantity * $unitCost);
 
         $payload = [
             'expense_date' => (string) $validated['expenseDate'],
             'category' => trim((string) $validated['category']),
-            'amount' => (int) $validated['amount'],
+            'quantity' => $quantity,
+            'unit' => $unit !== '' ? $unit : null,
+            'unit_cost' => $unitCost,
+            'amount' => $amount,
             'note' => $validated['note'],
             'created_by_user_id' => auth()->id(),
         ];
@@ -181,7 +214,7 @@ class OperatingExpensesPage extends Component
         }
 
         $this->formModalOpen = false;
-        $this->reset(['editingId', 'category', 'amount', 'note']);
+        $this->reset(['editingId', 'category', 'quantity', 'unit', 'unitCost', 'note']);
     }
 
     public function openDeleteConfirm(int $id): void

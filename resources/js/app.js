@@ -37,6 +37,9 @@ const initWidgets = () => {
     if (document.querySelector('#chartThree')) {
         import('./components/chart/chart-3').then(module => module.initChartThree());
     }
+    if (document.querySelector('#chartFour')) {
+        import('./components/chart/chart-4').then(module => module.initChartFour());
+    }
     if (document.querySelector('#reader')) {
         import('./components/qr-scanner').then(module => module.initQrScanner());
     }
@@ -50,9 +53,11 @@ document.addEventListener('livewire:init', () => {
     if (window.Livewire?.on) {
         let chartTwoModulePromise;
         let chartThreeModulePromise;
+        let chartFourModulePromise;
         let memberMapModulePromise;
         const getChartTwoModule = () => chartTwoModulePromise ??= import('./components/chart/chart-2');
         const getChartThreeModule = () => chartThreeModulePromise ??= import('./components/chart/chart-3');
+        const getChartFourModule = () => chartFourModulePromise ??= import('./components/chart/chart-4');
         const getMemberMapModule = () => memberMapModulePromise ??= import('./components/member-map');
 
         window.Livewire.on('monthly-target-updated', (data) => {
@@ -66,6 +71,13 @@ document.addEventListener('livewire:init', () => {
             const payload = data?.detail ?? data ?? {};
             getChartThreeModule().then((module) => {
                 module.updateChartThree?.(payload.series, payload.categories);
+            });
+        });
+
+        window.Livewire.on('item-sales-updated', (data) => {
+            const payload = data?.detail ?? data ?? {};
+            getChartFourModule().then((module) => {
+                module.updateChartFour?.(payload.series, payload.labels);
             });
         });
 

@@ -50,6 +50,9 @@
                     <tr class="border-b border-gray-200 dark:divide-gray-800 dark:border-gray-800">
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Tanggal</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Kategori</th>
+                        <th class="px-5 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Qty</th>
+                        <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Satuan</th>
+                        <th class="px-5 py-4 text-right whitespace-nowrap text-xs font-medium text-gray-500 dark:text-gray-400">Harga / Satuan</th>
                         <th class="px-5 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Nilai</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Catatan</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Dibuat oleh</th>
@@ -65,6 +68,15 @@
                             </td>
                             <td class="px-5 py-4 whitespace-nowrap">
                                 <p class="text-sm font-medium text-gray-800 dark:text-white/90">{{ (string) $row->category }}</p>
+                            </td>
+                            <td class="px-5 py-4 text-right whitespace-nowrap">
+                                <p class="text-sm text-gray-800 dark:text-white/90">{{ $row->quantity !== null ? \App\Support\Number\QuantityFormatter::format((float) $row->quantity) : '-' }}</p>
+                            </td>
+                            <td class="px-5 py-4 whitespace-nowrap">
+                                <p class="text-sm text-gray-800 dark:text-white/90">{{ $row->unit ?? '-' }}</p>
+                            </td>
+                            <td class="px-5 py-4 text-right whitespace-nowrap">
+                                <p class="text-sm text-gray-800 dark:text-white/90">{{ $row->unit_cost !== null ? $fmtCurrency((float) $row->unit_cost) : '-' }}</p>
                             </td>
                             <td class="px-5 py-4 text-right whitespace-nowrap">
                                 <p class="text-sm font-semibold text-gray-800 dark:text-white/90">{{ $fmtCurrency((int) $row->amount) }}</p>
@@ -91,7 +103,7 @@
                             </td>
                         </tr>
                     @empty
-                        <x-common.empty-table-row colspan="6" message="Belum ada data." />
+                        <x-common.empty-table-row colspan="9" message="Belum ada data." />
                     @endforelse
                 </tbody>
             </table>
@@ -146,24 +158,27 @@
                         @endif
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nilai (Rupiah)</label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <span class="text-gray-500 dark:text-gray-400 font-semibold">Rp</span>
-                            </div>
-                            <input
-                                x-data="currencyInput($wire.entangle('amount'))"
-                                x-model="displayValue"
-                                @input="handleInput"
-                                type="text"
-                                inputmode="numeric"
-                                aria-invalid="{{ $errors->has('amount') ? 'true' : 'false' }}"
-                                aria-describedby="{{ $errors->has('amount') ? 'error-amount' : '' }}"
-                                class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pl-10 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                                placeholder="0"
-                            />
-                        </div>
-                        <x-common.input-error for="amount" />
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Qty</label>
+                        <input wire:model.live="quantity" type="text" inputmode="decimal" aria-invalid="{{ $errors->has('quantity') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('quantity') ? 'error-quantity' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="0" />
+                        <x-common.input-error for="quantity" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Satuan (opsional)</label>
+                        <input wire:model.live="unit" type="text" list="expense-unit-suggestions" aria-invalid="{{ $errors->has('unit') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('unit') ? 'error-unit' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="pcs, kg, tabung, jam" />
+                        <datalist id="expense-unit-suggestions">
+                            @foreach (['pcs', 'kg', 'gram', 'liter', 'box', 'tabung', 'jam'] as $u)
+                                <option value="{{ $u }}"></option>
+                            @endforeach
+                        </datalist>
+                        <x-common.input-error for="unit" />
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Harga / Satuan</label>
+                        <x-common.rupiah-input wire-model="unitCost" placeholder="0" />
+                        <x-common.input-error for="unitCost" />
+                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            Subtotal: <span class="font-semibold text-gray-800 dark:text-white/90">{{ $fmtCurrency($this->unitSubtotal()) }}</span>
+                        </p>
                     </div>
                     <div class="sm:col-span-2">
                         <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Catatan</label>

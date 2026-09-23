@@ -69,6 +69,7 @@ return [
         'transactions.refund' => 'Refund Transaksi',
         'transactions.void.approve' => 'Setujui Void Transaksi',
         'transactions.refund.approve' => 'Setujui Refund Transaksi',
+        'transactions.whatsapp.send' => 'Kirim/Kirim Ulang Struk via WhatsApp',
 
         'members.view' => 'Lihat Member',
         'members.create' => 'Tambah Member',
@@ -134,5 +135,7 @@ return [
         'settings.points.edit' => 'Ubah Pengaturan Poin',
         'settings.targets.view' => 'Lihat Target Bulanan',
         'settings.targets.edit' => 'Ubah Target Bulanan',
+        'settings.whatsapp.view' => 'Lihat Pengaturan WhatsApp',
+        'settings.whatsapp.edit' => 'Kelola Sesi WhatsApp (Sambung/Putus)',
     ],
 ];

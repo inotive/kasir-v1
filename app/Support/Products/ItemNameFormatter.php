@@ -3,6 +3,7 @@
 namespace App\Support\Products;
 
 use App\Models\ProductVariant;
+use App\Models\TransactionItem;
 
 class ItemNameFormatter
 {
@@ -52,5 +53,48 @@ class ItemNameFormatter
         }
 
         return $variantName;
+    }
+
+    /**
+     * Build a single display line for a transaction item, combining the
+     * product name with its variant (when applicable) and add-ons, e.g.
+     * "Americano (Large) + Extra Shot, Oat Milk x2".
+     */
+    public static function itemDisplayLine(TransactionItem $item): string
+    {
+        $name = (string) ($item->product?->name ?? 'Produk');
+
+        $variantName = self::displayVariantName((int) $item->product_id, $item->variant?->name);
+        if ($variantName !== '') {
+            $name .= ' ('.$variantName.')';
+        }
+
+        $addonLabels = $item->itemAddons->map(function ($addon) {
+            $label = trim((string) ($addon->addon?->name ?? $addon->name ?? ''));
+            if ($label === '') {
+                return null;
+            }
+
+            $qty = (int) $addon->quantity;
+
+            return $qty > 1 ? $label.' x'.$qty : $label;
+        })->filter()->values()->all();
+
+        if ($addonLabels !== []) {
+            $name .= ' + '.implode(', ', $addonLabels);
+        }
+
+        return $name;
+    }
+
+    /**
+     * The amount actually charged for a transaction item line, including
+     * its add-ons (TransactionItem::subtotal only covers the base product).
+     */
+    public static function itemLineSubtotal(TransactionItem $item): int
+    {
+        $addonTotal = $item->itemAddons->sum(fn ($addon) => (int) $addon->price * (int) $addon->quantity);
+
+        return (int) $item->subtotal + (int) $addonTotal;
     }
 }

@@ -8,6 +8,7 @@ use App\Models\TransactionEvent;
 use App\Models\User;
 use App\Services\Inventory\InventoryService;
 use App\Services\Printing\PosPrintPayloadService;
+use App\Services\Whatsapp\WhatsappReceiptService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -189,6 +190,29 @@ class TransactionShowPage extends Component
         }
 
         $this->dispatch('pos-print-modal', payload: $payload, context: 'transaction_detail');
+    }
+
+    public function sendReceiptWhatsApp(): void
+    {
+        $actor = auth()->user();
+        if (! $actor || ! $actor->can('transactions.whatsapp.send')) {
+            $this->dispatch('toast', type: 'error', message: 'Anda tidak punya akses untuk mengirim struk WA.');
+
+            return;
+        }
+
+        $transaction = Transaction::query()->with('member')->find($this->transactionId);
+        if (! $transaction) {
+            $this->dispatch('toast', type: 'error', message: 'Transaksi tidak ditemukan.');
+
+            return;
+        }
+
+        $ok = app(WhatsappReceiptService::class)->resend($transaction, $actor->id);
+
+        $this->dispatch('toast', type: $ok ? 'success' : 'error', message: $ok
+            ? 'Struk WA sedang dikirim.'
+            : 'Gagal mengirim struk WA (cek nomor pelanggan/pengaturan WhatsApp tenant).');
     }
 
     public function processInventory(InventoryService $inventory): void
@@ -589,6 +613,7 @@ class TransactionShowPage extends Component
             ->with([
                 'member',
                 'diningTable',
+                'cashier',
                 'voucherCampaign',
                 'voucherCode',
                 'manualDiscountByUser',

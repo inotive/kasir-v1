@@ -6,6 +6,9 @@ use App\Models\MonthlyRevenueTarget;
 use App\Models\PrinterSource;
 use App\Models\Setting;
 use App\Models\Tenant;
+use App\Models\WhatsappSetting;
+use App\Services\Whatsapp\OpenwaException;
+use App\Services\Whatsapp\OpenwaService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
@@ -89,6 +92,22 @@ class SettingsPage extends Component
 
     public array $monthlyTargets = [];
 
+    public bool $whatsapp_is_enabled = false;
+
+    public bool $whatsapp_send_on_checkout_default = true;
+
+    public string $whatsapp_status = 'not_configured';
+
+    public ?string $whatsapp_linked_phone = null;
+
+    public ?string $whatsapp_last_error = null;
+
+    public ?string $whatsappQrDataUri = null;
+
+    public bool $whatsappQrPanelOpen = false;
+
+    public bool $whatsappBusy = false;
+
     public function mount(): void
     {
         $this->assertCanAccessSettingsPage();
@@ -129,8 +148,10 @@ class SettingsPage extends Component
             ->value('amount') ?? 0);
         $this->monthlyTargets = $this->loadMonthlyTargets();
 
+        $this->loadWhatsappState();
+
         $section = request()->query('section');
-        if (is_string($section) && $section !== '' && in_array($section, ['store', 'printers', 'system', 'points', 'targets'], true)) {
+        if (is_string($section) && $section !== '' && in_array($section, ['store', 'printers', 'system', 'points', 'targets', 'whatsapp'], true)) {
             if ($this->canViewSection($section)) {
                 $this->activeSection = $section;
             }
@@ -143,7 +164,7 @@ class SettingsPage extends Component
 
     public function setSection(string $section): void
     {
-        $allowed = ['store', 'printers', 'system', 'points', 'targets'];
+        $allowed = ['store', 'printers', 'system', 'points', 'targets', 'whatsapp'];
         if (! in_array($section, $allowed, true)) {
             return;
         }
@@ -162,6 +183,10 @@ class SettingsPage extends Component
         if ($section === 'targets') {
             $this->monthlyTargets = $this->loadMonthlyTargets();
         }
+
+        if ($section === 'whatsapp') {
+            $this->loadWhatsappState();
+        }
     }
 
     private function sectionPermission(string $section, string $ability): string
@@ -172,6 +197,7 @@ class SettingsPage extends Component
             'system' => $ability === 'edit' ? 'settings.system.edit' : 'settings.system.view',
             'points' => $ability === 'edit' ? 'settings.points.edit' : 'settings.points.view',
             'targets' => $ability === 'edit' ? 'settings.targets.edit' : 'settings.targets.view',
+            'whatsapp' => $ability === 'edit' ? 'settings.whatsapp.edit' : 'settings.whatsapp.view',
             default => 'settings.view',
         };
     }
@@ -199,7 +225,7 @@ class SettingsPage extends Component
 
     private function firstAllowedSection(): string
     {
-        foreach (['store', 'printers', 'system', 'points', 'targets'] as $section) {
+        foreach (['store', 'printers', 'system', 'points', 'targets', 'whatsapp'] as $section) {
             if ($this->canViewSection($section)) {
                 return $section;
             }
@@ -621,6 +647,192 @@ class SettingsPage extends Component
         $this->dispatch('toast', type: 'success', message: 'Gambar QRIS berhasil dihapus.');
     }
 
+    public function whatsappStatusLabel(): string
+    {
+        return match ($this->whatsapp_status) {
+            'not_configured' => 'Belum Dikonfigurasi',
+            'created' => 'Sesi Dibuat',
+            'initializing' => 'Menghubungkan...',
+            'qr_ready' => 'Menunggu Scan QR',
+            'authenticating' => 'Mengautentikasi...',
+            'ready' => 'Terhubung',
+            'disconnected' => 'Terputus',
+            'action_required' => 'Perlu Tindakan',
+            'failed' => 'Gagal',
+            default => $this->whatsapp_status,
+        };
+    }
+
+    public function whatsappStatusColorClasses(): string
+    {
+        if ($this->whatsapp_status === 'ready') {
+            return 'bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400';
+        }
+
+        if (in_array($this->whatsapp_status, ['failed', 'action_required'], true)) {
+            return 'bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400';
+        }
+
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+    }
+
+    private function loadWhatsappState(): void
+    {
+        $waSetting = WhatsappSetting::current();
+
+        $this->whatsapp_is_enabled = (bool) $waSetting->is_enabled;
+        $this->whatsapp_send_on_checkout_default = (bool) $waSetting->send_on_checkout_default;
+        $this->whatsapp_status = (string) $waSetting->status;
+        $this->whatsapp_linked_phone = $waSetting->linked_phone;
+        $this->whatsapp_last_error = $waSetting->last_error;
+    }
+
+    public function saveWhatsappToggles(): void
+    {
+        $this->authorizeSectionEdit('whatsapp');
+
+        $validated = $this->validate([
+            'whatsapp_is_enabled' => ['boolean'],
+            'whatsapp_send_on_checkout_default' => ['boolean'],
+        ]);
+
+        $waSetting = WhatsappSetting::current();
+        WhatsappSetting::query()
+            ->whereKey($waSetting->getKey())
+            ->update([
+                'is_enabled' => (bool) $validated['whatsapp_is_enabled'],
+                'send_on_checkout_default' => (bool) $validated['whatsapp_send_on_checkout_default'],
+            ]);
+
+        $this->dispatch('toast', type: 'success', message: 'Pengaturan WhatsApp berhasil disimpan.');
+    }
+
+    public function connectWhatsapp(OpenwaService $openwa): void
+    {
+        $this->authorizeSectionEdit('whatsapp');
+
+        $this->whatsappBusy = true;
+        $this->whatsapp_last_error = null;
+
+        try {
+            $waSetting = WhatsappSetting::current();
+
+            if (! $waSetting->openwa_session_id) {
+                $sessionName = 'tenant-'.Tenant::current()->id;
+                $created = $openwa->createSession($sessionName);
+
+                $waSetting->openwa_session_id = (string) ($created['id'] ?? '');
+                $waSetting->openwa_session_name = $sessionName;
+                $waSetting->save();
+            }
+
+            $openwa->startSession($waSetting->openwa_session_id);
+
+            $this->whatsappQrPanelOpen = true;
+            $this->refreshWhatsappStatus($openwa);
+        } catch (OpenwaException $e) {
+            $this->whatsapp_last_error = $e->getMessage();
+            $this->dispatch('toast', type: 'error', message: 'Gagal menyambungkan WhatsApp: '.$e->getMessage());
+        } finally {
+            $this->whatsappBusy = false;
+        }
+    }
+
+    public function refreshWhatsappStatus(?OpenwaService $openwa = null): void
+    {
+        $this->authorizeSectionView('whatsapp');
+
+        $openwa ??= app(OpenwaService::class);
+
+        $waSetting = WhatsappSetting::current();
+        if (! $waSetting->openwa_session_id) {
+            return;
+        }
+
+        try {
+            $status = $openwa->getStatus($waSetting->openwa_session_id);
+            $newStatus = (string) ($status['status'] ?? $waSetting->status);
+
+            $wasReady = $waSetting->status === 'ready';
+
+            $waSetting->status = $newStatus;
+            $waSetting->linked_phone = $status['phone'] ?? null;
+            $waSetting->last_status_checked_at = now();
+            $waSetting->last_error = $status['lastError'] ?? null;
+            $waSetting->save();
+
+            $this->whatsapp_status = $newStatus;
+            $this->whatsapp_linked_phone = $waSetting->linked_phone;
+            $this->whatsapp_last_error = $waSetting->last_error;
+
+            if ($newStatus === 'qr_ready') {
+                $qr = $openwa->getQr($waSetting->openwa_session_id);
+                $this->whatsappQrDataUri = $qr['qrCode'] ?? null;
+            } else {
+                $this->whatsappQrDataUri = null;
+            }
+
+            if ($newStatus === 'ready' && ! $wasReady) {
+                $this->whatsappQrPanelOpen = false;
+                $this->dispatch('toast', type: 'success', message: 'WhatsApp berhasil terhubung.');
+            }
+        } catch (OpenwaException $e) {
+            $this->whatsapp_last_error = $e->getMessage();
+        }
+    }
+
+    public function disconnectWhatsapp(OpenwaService $openwa): void
+    {
+        $this->authorizeSectionEdit('whatsapp');
+
+        $waSetting = WhatsappSetting::current();
+        if (! $waSetting->openwa_session_id) {
+            return;
+        }
+
+        try {
+            $openwa->logoutSession($waSetting->openwa_session_id);
+        } catch (OpenwaException $e) {
+            $this->dispatch('toast', type: 'error', message: 'Gagal memutuskan WhatsApp: '.$e->getMessage());
+
+            return;
+        }
+
+        $waSetting->status = 'disconnected';
+        $waSetting->linked_phone = null;
+        $waSetting->save();
+
+        $this->loadWhatsappState();
+        $this->dispatch('toast', type: 'success', message: 'WhatsApp berhasil diputuskan.');
+    }
+
+    public function forgetWhatsappSession(OpenwaService $openwa): void
+    {
+        $this->authorizeSectionEdit('whatsapp');
+
+        $waSetting = WhatsappSetting::current();
+        if ($waSetting->openwa_session_id) {
+            try {
+                $openwa->deleteSession($waSetting->openwa_session_id);
+            } catch (OpenwaException) {
+                // Best-effort: session may already be gone on the OpenWA side.
+            }
+        }
+
+        $waSetting->openwa_session_id = null;
+        $waSetting->openwa_session_name = null;
+        $waSetting->status = 'not_configured';
+        $waSetting->linked_phone = null;
+        $waSetting->last_error = null;
+        $waSetting->save();
+
+        $this->whatsappQrPanelOpen = false;
+        $this->whatsappQrDataUri = null;
+        $this->loadWhatsappState();
+
+        $this->dispatch('toast', type: 'success', message: 'Sesi WhatsApp direset. Silakan sambungkan ulang.');
+    }
+
     public function render(): View
     {
         $this->assertCanAccessSettingsPage();
@@ -631,7 +843,9 @@ class SettingsPage extends Component
     private function assertCanAccessSettingsPage(): void
     {
         abort_unless(
-            (auth()->user()?->can('settings.view') ?? false) || (auth()->user()?->can('settings.printers.devices') ?? false),
+            (auth()->user()?->can('settings.view') ?? false)
+                || (auth()->user()?->can('settings.printers.devices') ?? false)
+                || (auth()->user()?->can('settings.whatsapp.view') ?? false),
             403
         );
     }

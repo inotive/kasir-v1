@@ -20,6 +20,7 @@ use App\Services\PriceService;
 use App\Services\SelfOrder\SelfOrderCheckoutService;
 use App\Services\Transactions\ReceiptEmailService;
 use App\Services\Transactions\TransactionEventService;
+use App\Services\Whatsapp\WhatsappReceiptService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1082,6 +1083,7 @@ class TransactionController extends Controller
                     (string) ($transaction->diningTable?->table_number ?? '')
                 ));
                 app(ReceiptEmailService::class)->queueIfNeeded($transaction);
+                app(WhatsappReceiptService::class)->queueIfEnabled($transaction);
             }
 
             if ((string) $transaction->channel === 'self_order' && (string) ($transaction->self_order_token ?? '') !== '' && $previous !== (string) $transaction->payment_status) {
@@ -1126,6 +1128,14 @@ class TransactionController extends Controller
         }
 
         if ($sessionExternalId !== '' && hash_equals($sessionExternalId, (string) $transaction->external_id)) {
+            return view('livewire.self-order.payment.receipt', [
+                'transaction' => $transaction,
+            ]);
+        }
+
+        $waToken = trim((string) request()->query('wa_token', ''));
+        $trxWaToken = trim((string) ($transaction->wa_receipt_token ?? ''));
+        if ($waToken !== '' && $trxWaToken !== '' && hash_equals($trxWaToken, $waToken)) {
             return view('livewire.self-order.payment.receipt', [
                 'transaction' => $transaction,
             ]);

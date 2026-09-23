@@ -1,10 +1,11 @@
 @php
-    $customerName = (string) ($transaction->member?->name ?? $transaction->name ?? '-');
+    $customerName = $transaction->customerLabel(auth()->user()?->can('transactions.pii.view') ?? false);
     $orderType = (string) ($transaction->order_type ?? '');
     $paymentMethodKey = (string) ($transaction->payment_method ?? '');
     $paymentMethodLabel = \App\Helpers\DataLabelHelper::enum($paymentMethodKey !== '' ? $paymentMethodKey : null, 'payment_method');
     $paymentStatusKey = (string) ($transaction->payment_status ?? '');
     $paymentStatusLabel = \App\Helpers\DataLabelHelper::enum($paymentStatusKey !== '' ? $paymentStatusKey : null, 'payment_status');
+    $transactionTime = $transaction->paid_at ?? $transaction->created_at;
     $inventoryApplied = $transaction->inventory_applied_at !== null;
     $user = auth()->user();
     $voidQuickMaxCount = (int) ($correctionRules['void_quick_max_count_per_day'] ?? 0);
@@ -36,8 +37,8 @@
                 <h2 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ $transaction->code }}</h2>
             </div>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                @if ($transaction->created_at)
-                    <span x-data="{ d: new Date('{{ $transaction->created_at->toISOString() }}') }"
+                @if ($transactionTime)
+                    <span x-data="{ d: new Date('{{ $transactionTime->toISOString() }}') }"
                         x-text="d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })"></span>
                 @else
                     -
@@ -49,6 +50,11 @@
             @can('transactions.print')
                 <button type="button" wire:click="printReceipt" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
                     Cetak Struk
+                </button>
+            @endcan
+            @can('transactions.whatsapp.send')
+                <button type="button" wire:click="sendReceiptWhatsApp" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
+                    Kirim Ulang via WA
                 </button>
             @endcan
             @if ($paymentStatusKey === 'pending')
@@ -118,6 +124,10 @@
                 <div class="flex items-start justify-between gap-4">
                     <dt class="text-sm text-gray-500 dark:text-gray-400">Status</dt>
                     <dd class="text-sm font-medium text-gray-800 dark:text-white/90 text-right">{{ $paymentStatusLabel }}</dd>
+                </div>
+                <div class="flex items-start justify-between gap-4">
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Kasir/Sumber</dt>
+                    <dd class="text-sm font-medium text-gray-800 dark:text-white/90 text-right">{{ $transaction->cashierSourceLabel() }}</dd>
                 </div>
                 @if ($discountTotal > 0)
                     <div class="flex items-start justify-between gap-4">

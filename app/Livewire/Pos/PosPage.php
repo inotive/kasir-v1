@@ -4,21 +4,26 @@ namespace App\Livewire\Pos;
 
 use App\Events\SelfOrderPaymentUpdated;
 use App\Models\Addon;
-use App\Models\AddonCategory;
 use App\Models\Category;
 use App\Models\DiningTable;
 use App\Models\Member;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Setting;
+use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Models\TransactionEvent;
 use App\Models\TransactionItem;
 use App\Models\TransactionItemAddon;
 use App\Models\VoucherCode;
 use App\Models\VoucherRedemption;
+use App\Models\WhatsappSetting;
 use App\Services\Inventory\VariantIngredientStockStatusService;
+use App\Services\PointService;
 use App\Services\Printing\PosPrintPayloadService;
+use App\Services\Vouchers\VoucherEligibilityService;
+use App\Services\Whatsapp\WhatsappReceiptService;
+use App\Support\Phone\PhoneNumber;
 use App\Support\Products\ItemNameFormatter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -190,6 +195,10 @@ class PosPage extends Component
 
     public array $variantStockStatuses = [];
 
+    public bool $waEnabledForTenant = false;
+
+    public bool $sendReceiptWhatsApp = false;
+
     public function mount(): void
     {
         $this->authorize('pos.access');
@@ -200,6 +209,10 @@ class PosPage extends Component
         $this->discountAppliesBeforeTax = (bool) ($setting->discount_applies_before_tax ?? true);
         $this->minRedemptionPoints = (int) ($setting->min_redemption_points ?? 0);
         $this->pointRedemptionValue = (float) ($setting->point_redemption_value ?? 0);
+
+        $waSetting = WhatsappSetting::current();
+        $this->waEnabledForTenant = (bool) $waSetting->is_enabled && $waSetting->status === 'ready';
+        $this->sendReceiptWhatsApp = $this->waEnabledForTenant && (bool) $waSetting->send_on_checkout_default;
 
         if ($this->customerName === '') {
             $this->customerName = '';
@@ -399,7 +412,7 @@ class PosPage extends Component
 
         $validated = $this->validate([
             'inlineMemberName' => ['required', 'string', 'max:255'],
-            'inlineMemberPhone' => ['required', 'string', 'max:50', \App\Models\Tenant::uniqueRule('members', 'phone')],
+            'inlineMemberPhone' => ['required', 'string', 'max:50', Tenant::uniqueRule('members', 'phone')],
         ], [], [
             'inlineMemberName' => 'Nama',
             'inlineMemberPhone' => 'Telepon',
@@ -1200,7 +1213,7 @@ class PosPage extends Component
                     'product_id' => (int) $componentProduct->id,
                     'product_name' => (string) $componentProduct->name,
                     'variant_id' => (int) $componentVariant->id,
-                    'variant_name' => \App\Support\Products\ItemNameFormatter::displayVariantName(
+                    'variant_name' => ItemNameFormatter::displayVariantName(
                         (int) $componentProduct->id,
                         (string) $componentVariant->name
                     ),
@@ -1500,7 +1513,7 @@ class PosPage extends Component
         foreach ($existingComponents as $row) {
             $vid = (int) ($row['variant_id'] ?? 0);
             $note = trim((string) ($row['note'] ?? ''));
-            $k = $vid . '|' . $note;
+            $k = $vid.'|'.$note;
             $existingAddonsByVariantKey[$k] = $row['addons'] ?? [];
         }
 
@@ -1528,7 +1541,7 @@ class PosPage extends Component
                 $allocations = $existing->map(function (array $row) use ($existingAddonsByVariantKey) {
                     $vid = (int) ($row['variant_id'] ?? 0);
                     $note = trim((string) ($row['note'] ?? ''));
-                    $k = $vid . '|' . $note;
+                    $k = $vid.'|'.$note;
 
                     return [
                         'key' => (string) Str::uuid(),
@@ -2072,9 +2085,9 @@ class PosPage extends Component
             $payload = [
                 'product_id' => (int) $item->product_id,
                 'variant_id' => $item->product_variant_id === null ? 0 : (int) $item->product_variant_id,
-                                'name' => $name,
+                'name' => $name,
                 'variant_name' => $variantName,
-                                'price' => $price,
+                'price' => $price,
                 'original_price' => $price,
                 'percent' => null,
                 'quantity' => (int) $item->quantity,
@@ -2260,7 +2273,7 @@ class PosPage extends Component
                     'manual_discount_value' => $manualValue,
                     'manual_discount_amount' => $this->manualDiscountAmount,
                     'manual_discount_note' => $manualNote,
-                    'manual_discount_by_user_id' => auth()->id(),
+                    'manual_discount_by_user_id' => $this->manualDiscountAmount > 0 ? auth()->id() : null,
                     'discount_total_amount' => $this->discountTotalAmount,
                     'point_discount_amount' => 0, // Will be set by redeemPoints
                     'points_redeemed' => 0, // Will be set by redeemPoints
@@ -2293,7 +2306,7 @@ class PosPage extends Component
                     'manual_discount_value' => $manualValue,
                     'manual_discount_amount' => $this->manualDiscountAmount,
                     'manual_discount_note' => $manualNote,
-                    'manual_discount_by_user_id' => auth()->id(),
+                    'manual_discount_by_user_id' => $this->manualDiscountAmount > 0 ? auth()->id() : null,
                     'discount_total_amount' => $this->discountTotalAmount,
                     'point_discount_amount' => 0,
                     'points_redeemed' => 0,
@@ -2453,7 +2466,7 @@ class PosPage extends Component
 
         $voucherResolved = null;
         if (trim((string) $this->voucherCodeInput) !== '') {
-            $voucherResolved = app(\App\Services\Vouchers\VoucherEligibilityService::class)
+            $voucherResolved = app(VoucherEligibilityService::class)
                 ->validate((string) $this->voucherCodeInput, $member, $this->cartItems, $guestId);
 
             if (! (bool) ($voucherResolved['ok'] ?? false)) {
@@ -2563,7 +2576,7 @@ class PosPage extends Component
                     'manual_discount_value' => $manualValue,
                     'manual_discount_amount' => $this->manualDiscountAmount,
                     'manual_discount_note' => $manualNote,
-                    'manual_discount_by_user_id' => auth()->id(),
+                    'manual_discount_by_user_id' => $this->manualDiscountAmount > 0 ? auth()->id() : null,
                     'discount_total_amount' => $this->discountTotalAmount,
                     'point_discount_amount' => 0,
                     'points_redeemed' => 0,
@@ -2596,7 +2609,7 @@ class PosPage extends Component
                     'manual_discount_value' => $manualValue,
                     'manual_discount_amount' => $this->manualDiscountAmount,
                     'manual_discount_note' => $manualNote,
-                    'manual_discount_by_user_id' => auth()->id(),
+                    'manual_discount_by_user_id' => $this->manualDiscountAmount > 0 ? auth()->id() : null,
                     'discount_total_amount' => $this->discountTotalAmount,
                     'tax_percentage' => $this->taxRate,
                     'tax_amount' => $this->taxAmount,
@@ -2730,7 +2743,7 @@ class PosPage extends Component
             }
 
             if ($this->pointsToRedeem > 0 && (int) ($trx->points_redeemed ?? 0) <= 0) {
-                app(\App\Services\PointService::class)->redeemPoints($trx, $this->pointsToRedeem);
+                app(PointService::class)->redeemPoints($trx, $this->pointsToRedeem);
 
                 TransactionEvent::query()->create([
                     'transaction_id' => (int) $trx->id,
@@ -2747,7 +2760,21 @@ class PosPage extends Component
 
             $trx->forceFill([
                 'payment_status' => 'paid',
+                'cashier_user_id' => auth()->id(),
+                'paid_at' => $trx->paid_at ?? now(),
             ])->save();
+
+            if ($previousPaymentStatus !== 'paid') {
+                TransactionEvent::query()->create([
+                    'transaction_id' => (int) $trx->id,
+                    'actor_user_id' => auth()->id(),
+                    'action' => 'payment.completed',
+                    'meta' => [
+                        'channel' => (string) $trx->channel,
+                        'payment_method' => (string) $trx->payment_method,
+                    ],
+                ]);
+            }
 
             $trxId = (int) $trx->id;
             $this->editingTransactionId = null;
@@ -2773,6 +2800,10 @@ class PosPage extends Component
         $payload = $this->buildPrintPayload($trxId);
         if ($payload) {
             $this->dispatch('pos-print-modal', payload: $payload, context: 'checkout');
+        }
+
+        if ($this->waEnabledForTenant && $this->sendReceiptWhatsApp) {
+            app(WhatsappReceiptService::class)->queueIfRequested($trx, true);
         }
     }
 
@@ -2892,20 +2923,12 @@ class PosPage extends Component
 
     private function normalizePhoneForMember(?string $phone): ?string
     {
-        if (empty($phone)) {
-            return null;
-        }
+        return PhoneNumber::normalizeForMember($phone);
+    }
 
-        $p = preg_replace('/\D+/', '', $phone);
-        if (str_starts_with($p, '0')) {
-            return '62'.substr($p, 1);
-        }
-
-        if (! str_starts_with($p, '62')) {
-            return '62'.$p;
-        }
-
-        return $p;
+    public function resolveCustomerPhoneForWa(): ?string
+    {
+        return PhoneNumber::toWhatsAppChatId($this->customerPhone) ? $this->customerPhone : null;
     }
 
     private function createPackageChildItems(Transaction $trx, TransactionItem $parent, Product $product, array $cartItem, int $parentQty): void
@@ -3329,9 +3352,9 @@ class PosPage extends Component
             $payload = [
                 'product_id' => (int) $item->product_id,
                 'variant_id' => $item->product_variant_id === null ? 0 : (int) $item->product_variant_id,
-                                'name' => $name,
+                'name' => $name,
                 'variant_name' => $variantName,
-                                'price' => $price,
+                'price' => $price,
                 'original_price' => $price,
                 'percent' => null,
                 'quantity' => (int) $item->quantity,
@@ -3409,7 +3432,7 @@ class PosPage extends Component
                 }
                 $guestId = $member ? null : ($this->customerPhone ? trim((string) $this->customerPhone) : null);
 
-                $elig = app(\App\Services\Vouchers\VoucherEligibilityService::class)
+                $elig = app(VoucherEligibilityService::class)
                     ->validate($code, $member, $this->cartItems, $guestId);
 
                 if ((bool) ($elig['ok'] ?? false)) {

@@ -105,9 +105,9 @@
                                         </div>
                                     </div>
                                 @else
-                                    <p class="text-sm font-medium text-gray-800 dark:text-white/90">{{ $member->name }}</p>
+                                    <p class="text-sm font-medium text-gray-800 dark:text-white/90">{{ $member->displayLabel($canViewPii) }}</p>
                                     @if ($canViewPii)
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $member->phone ?? $member->email ?? '-' }}</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $member->email ?? '-' }}</p>
                                     @else
                                         <p class="text-xs text-gray-500 dark:text-gray-400">-</p>
                                     @endif
@@ -131,7 +131,7 @@
                             </td>
                             <td class="px-5 py-4 text-right">
                                 @can('transactions.view')
-                                    <a href="{{ route('transactions.index', ['memberId' => $member->id]) }}" class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
+                                    <a href="{{ route('transactions.index', ['memberIds' => [$member->id]]) }}" aria-label="Lihat transaksi {{ $member->displayLabel($canViewPii) }}" class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
                                         {{ number_format((int) ($member->transactions_count ?? 0), 0, ',', '.') }}
                                     </a>
                                 @else

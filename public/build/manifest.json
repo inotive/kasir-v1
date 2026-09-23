@@ -76,7 +76,7 @@
     "src": "node_modules/leaflet/dist/images/marker-icon.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-V0qAIxAX.css",
+    "file": "assets/app-D7yJfIlD.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -85,7 +85,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-KBAx5Uge.js",
+    "file": "assets/app-DwFLBe5F.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -101,9 +101,11 @@
       "resources/js/components/member-map.js",
       "resources/js/components/chart/chart-2.js",
       "resources/js/components/chart/chart-3.js",
+      "resources/js/components/chart/chart-4.js",
       "resources/js/components/qr-scanner.js",
       "resources/js/components/chart/chart-2.js",
       "resources/js/components/chart/chart-3.js",
+      "resources/js/components/chart/chart-4.js",
       "resources/js/components/member-map.js"
     ]
   },
@@ -117,6 +119,12 @@
     "file": "assets/chart-3-B6uUKk90.js",
     "name": "chart-3",
     "src": "resources/js/components/chart/chart-3.js",
+    "isDynamicEntry": true
+  },
+  "resources/js/components/chart/chart-4.js": {
+    "file": "assets/chart-4-B19LJwYG.js",
+    "name": "chart-4",
+    "src": "resources/js/components/chart/chart-4.js",
     "isDynamicEntry": true
   },
   "resources/js/components/member-map.js": {

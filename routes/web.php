@@ -28,6 +28,7 @@ use App\Livewire\Pos\PosPage;
 use App\Livewire\Product\AddonsPage;
 use App\Livewire\Product\ProductFormPage;
 use App\Livewire\Product\ProductsPage;
+use App\Livewire\Reports\ItemSalesReportPage;
 use App\Livewire\Reports\ManualDiscountReportPage;
 use App\Livewire\Reports\MemberPerformanceReportPage;
 use App\Livewire\Reports\OperatingExpensesPage;
@@ -283,6 +284,8 @@ Route::prefix('admin')->middleware('admin.domain')->group(function () {
 
         Route::get('/transactions', TransactionsPage::class)->middleware('permission:transactions.view')->name('transactions.index');
         Route::get('/transactions/{transaction}', TransactionShowPage::class)->middleware('permission:transactions.details')->name('transactions.show');
+        Route::get('/transactions-export/excel', [ReportExcelController::class, 'transactionsExcel'])->middleware(['permission:transactions.view', 'throttle:10,1'])->name('transactions.excel');
+        Route::get('/transactions-export/pdf', [ReportExcelController::class, 'transactionsPdf'])->middleware(['permission:transactions.view', 'throttle:10,1'])->name('transactions.pdf');
 
         Route::get('/products', ProductsPage::class)->middleware('permission:products.view')->name('products.index');
         Route::get('/products/create', ProductFormPage::class)->middleware('permission:products.create')->name('products.create');
@@ -298,6 +301,7 @@ Route::prefix('admin')->middleware('admin.domain')->group(function () {
         Route::get('/reports/member-performance', MemberPerformanceReportPage::class)->middleware('permission:reports.performance')->name('reports.member-performance');
         Route::get('/reports/manual-discounts', ManualDiscountReportPage::class)->middleware('permission:reports.sales')->name('reports.manual-discount');
         Route::get('/reports/operating-expenses', OperatingExpensesPage::class)->middleware('permission:reports.sales|reports.expenses.manage')->name('reports.operating-expenses');
+        Route::get('/reports/item-sales', ItemSalesReportPage::class)->middleware('permission:reports.sales')->name('reports.item-sales');
         Route::get('/reports/sales-profit/excel', [ReportExcelController::class, 'salesProfit'])->middleware(['permission:reports.sales', 'throttle:10,1'])->name('reports.sales-profit.excel');
         Route::get('/reports/member-performance/excel', [ReportExcelController::class, 'memberPerformance'])->middleware(['permission:reports.performance', 'throttle:10,1'])->name('reports.member-performance.excel');
         Route::get('/reports/manual-discounts/excel', [ReportExcelController::class, 'manualDiscounts'])->middleware(['permission:reports.sales', 'throttle:10,1'])->name('reports.manual-discount.excel');
@@ -331,7 +335,7 @@ Route::prefix('admin')->middleware('admin.domain')->group(function () {
         Route::get('/inventory/reports/stock-card/excel', [ReportExcelController::class, 'inventoryStockCard'])->middleware(['permission:inventory.reports.view|inventory.view', 'throttle:10,1'])->name('inventory-reports.stock-card.excel');
         Route::get('/inventory/reports/valuation/excel', [ReportExcelController::class, 'inventoryValuation'])->middleware(['permission:inventory.reports.view|inventory.view', 'throttle:10,1'])->name('inventory-reports.valuation.excel');
 
-        Route::get('/settings', SettingsPage::class)->middleware('permission:settings.view|settings.printers.devices')->name('settings.index');
+        Route::get('/settings', SettingsPage::class)->middleware('permission:settings.view|settings.printers.devices|settings.whatsapp.view')->name('settings.index');
         Route::get('/users', UsersPage::class)->middleware('permission:users.view')->name('users.index');
 
         Route::get('/roles', RoleIndex::class)->middleware('permission:roles.view')->name('roles.index');

@@ -4,12 +4,39 @@
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white/90">Riwayat Transaksi</h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">Pantau ringkasan transaksi dan detail penjualan.</p>
         </div>
+
+        @php
+            $exportParams = [
+                'search' => $search,
+                'fromDate' => (string) ($fromDate ?? ''),
+                'toDate' => (string) ($toDate ?? ''),
+                'paymentStatus' => $paymentStatus,
+                'paymentMethod' => $paymentMethod,
+                'orderType' => $orderType,
+                'cashierFilter' => $cashierFilter,
+                'memberIds' => $memberIds,
+            ];
+        @endphp
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <a
+                href="{{ route('transactions.excel', $exportParams) }}"
+                class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
+            >
+                Export Excel
+            </a>
+            <a
+                href="{{ route('transactions.pdf', $exportParams) }}"
+                class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]"
+            >
+                Export PDF
+            </a>
+        </div>
     </div>
 
-    @if ($filteredMember)
+    @if ($memberIds !== [])
         <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 dark:border-brand-800 dark:bg-brand-900/20">
             <p class="text-sm text-brand-700 dark:text-brand-300">
-                Menampilkan transaksi milik: <span class="font-semibold">{{ $filteredMember->name }}</span>
+                Menampilkan transaksi milik: <span class="font-semibold">{{ implode(', ', $filteredMemberLabels) }}</span>
             </p>
             <button type="button" wire:click="clearMemberFilter" class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
                 Hapus filter
@@ -17,22 +44,25 @@
         </div>
     @endif
 
-    <x-common.date-range-picker
-        :preset="$rangePreset"
-        :from="$fromDate"
-        :to="$toDate"
-        wire-from-model="fromDate"
-        wire-to-model="toDate"
-        class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
-    />
+    <div wire:key="transaction-dates-{{ $rangePreset }}-{{ $fromDate }}-{{ $toDate }}">
+        <x-common.date-range-picker
+            :preset="$rangePreset"
+            :from="$fromDate"
+            :to="$toDate"
+            wire-from-model="fromDate"
+            wire-to-model="toDate"
+            placeholder="Semua tanggal"
+            class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
+        />
+    </div>
 
     <x-transaction.history-metrics :stats="$stats" />
 
     <x-transaction.payment-method-cards :stats="$paymentMethodStats" />
 
-    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-        <div class="custom-scrollbar overflow-x-auto border-b border-gray-200 px-5 py-4 dark:border-gray-800">
-            <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+    <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+        <div class="border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+            <div class="flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-center xl:justify-between">
                 <div class="relative flex-1 xl:flex-none">
                     <span class="absolute top-1/2 left-4 -translate-y-1/2 text-gray-500 dark:text-gray-400">
                         <svg class="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -43,7 +73,59 @@
                 </div>
 
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div class="flex flex-col gap-3 sm:flex-row">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                        <div
+                            x-data="{
+                                open: false,
+                                memberSearch: '',
+                                matches(label) {
+                                    return label.toLocaleLowerCase().includes(this.memberSearch.trim().toLocaleLowerCase());
+                                }
+                            }"
+                            class="relative w-full sm:w-auto"
+                            @click.outside="open = false"
+                            @keydown.escape.stop.prevent="open = false; $refs.memberToggle.focus()"
+                        >
+                            <button
+                                x-ref="memberToggle"
+                                type="button"
+                                @click="open = !open; if (open) $nextTick(() => $refs.memberSearch.focus())"
+                                :aria-expanded="open"
+                                aria-controls="transaction-member-options"
+                                class="shadow-theme-xs inline-flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                            >
+                                <span>{{ $memberIds === [] ? 'Semua Member' : count($memberIds).' member dipilih' }}</span>
+                                <svg class="h-4 w-4" :class="{ 'rotate-180': open }" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                            <div id="transaction-member-options" x-show="open" x-cloak class="absolute left-0 z-30 mt-2 w-full rounded-lg border border-gray-200 bg-white p-3 shadow-lg sm:w-72 dark:border-gray-700 dark:bg-gray-800">
+                                <input
+                                    x-ref="memberSearch"
+                                    x-model="memberSearch"
+                                    type="search"
+                                    placeholder="Cari nama atau nomor member..."
+                                    aria-label="Cari member berdasarkan nama atau nomor"
+                                    autocomplete="off"
+                                    class="mb-3 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-500 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                                />
+                                <button type="button" wire:click="clearMemberFilter" @click="memberSearch = ''" class="mb-2 text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">Semua Member</button>
+                                <div x-ref="memberList" class="max-h-60 space-y-2 overflow-y-auto">
+                                    @forelse ($memberOptions as $value => $label)
+                                        <label wire:key="transaction-member-{{ $value }}" data-member-label="{{ $label }}" x-show="matches($el.dataset.memberLabel)" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                            <input type="checkbox" wire:model.live="memberIds" value="{{ $value }}" class="rounded border-gray-300 text-brand-500" />
+                                            <span>{{ $label }}</span>
+                                        </label>
+                                    @empty
+                                        <p class="text-sm text-gray-500">Member belum ada.</p>
+                                    @endforelse
+                                </div>
+                                @if ($memberOptions !== [])
+                                    <p x-show="memberSearch.trim() !== '' && !Array.from($refs.memberList.querySelectorAll('[data-member-label]')).some(option => matches(option.dataset.memberLabel))" x-cloak role="status" class="py-2 text-sm text-gray-500 dark:text-gray-400">Member tidak ditemukan.</p>
+                                @endif
+                            </div>
+                        </div>
+
                         <select wire:model.live="paymentStatus" class="shadow-theme-xs h-11 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                             <option value="">Semua Status</option>
                             @foreach ($paymentStatusOptions as $status)
@@ -64,25 +146,36 @@
                                 <option value="{{ $type }}">{{ $type === 'dine_in' ? 'Dine in' : 'Take away' }}</option>
                             @endforeach
                         </select>
+
+                        <select wire:model.live="cashierFilter" class="shadow-theme-xs h-11 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                            <option value="">Semua Kasir/Sumber</option>
+                            @foreach ($cashierOptions as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                            <option value="automatic">Self Order Otomatis</option>
+                            <option value="unassigned">Tidak Tercatat</option>
+                        </select>
+
                     </div>
                 </div>
             </div>
         </div>
 
         @php
-            $canActions = (bool) (auth()->user()?->can('transactions.details') || auth()->user()?->can('transactions.print'));
+            $canActions = (bool) (auth()->user()?->can('transactions.details') || auth()->user()?->can('transactions.print') || auth()->user()?->can('transactions.whatsapp.send'));
         @endphp
         <div class="custom-scrollbar overflow-x-auto">
             <table class="w-full table-auto">
                 <thead>
                     <tr class="border-b border-gray-200 dark:divide-gray-800 dark:border-gray-800">
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                            <button type="button" wire:click="sortBy('created_at')" class="flex items-center gap-2">
+                            <button type="button" wire:click="sortBy('operational_date')" class="flex items-center gap-2">
                                 Tanggal
                             </button>
                         </th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Kode</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Pelanggan</th>
+                        <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Kasir/Sumber</th>
                         <th class="px-5 py-4 text-center text-xs font-medium text-gray-500 dark:text-gray-400">Tipe</th>
                         <th class="px-5 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Pembayaran</th>
                         <th class="px-5 py-4 text-right text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -98,22 +191,23 @@
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @forelse ($transactions as $transaction)
                         @php
-                            $customer = (string) ($transaction->member?->name ?? $transaction->name ?? '-');
+                            $customer = $transaction->customerLabel(auth()->user()?->can('transactions.pii.view') ?? false);
                             $orderType = (string) ($transaction->order_type ?? '');
                             $paymentMethodKey = (string) ($transaction->payment_method ?? '');
                             $paymentMethodLabel = \App\Helpers\DataLabelHelper::enum($paymentMethodKey, 'payment_method');
                             $paymentStatusKey = (string) ($transaction->payment_status ?? '');
                             $paymentStatusLabel = \App\Helpers\DataLabelHelper::enum($paymentStatusKey, 'payment_status');
+                            $transactionTime = $transaction->paid_at ?? $transaction->created_at;
                         @endphp
                         <tr>
                             <td class="px-5 py-4">
                                 <div class="space-y-1">
-                                    @if ($transaction->created_at)
+                                    @if ($transactionTime)
                                         <p class="text-sm font-medium text-gray-800 dark:text-white/90"
-                                            x-data="{ d: new Date('{{ $transaction->created_at->toISOString() }}') }"
+                                            x-data="{ d: new Date('{{ $transactionTime->toISOString() }}') }"
                                             x-text="d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })"></p>
                                         <p class="text-xs text-gray-500 dark:text-gray-400"
-                                            x-data="{ d: new Date('{{ $transaction->created_at->toISOString() }}') }"
+                                            x-data="{ d: new Date('{{ $transactionTime->toISOString() }}') }"
                                             x-text="d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })"></p>
                                     @else
                                         <p class="text-sm font-medium text-gray-800 dark:text-white/90">-</p>
@@ -126,10 +220,14 @@
                             <td class="px-5 py-4">
                                 <p class="text-sm text-gray-800 dark:text-white/90">{{ $customer }}</p>
                                 @can('transactions.pii.view')
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $transaction->phone ?? $transaction->email }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $transaction->member?->email ?? $transaction->email ?? '-' }}</p>
                                 @else
                                     <p class="text-xs text-gray-500 dark:text-gray-400">-</p>
                                 @endcan
+                            </td>
+                            <td class="px-5 py-4">
+                                <p class="text-sm font-medium text-gray-800 dark:text-white/90">{{ $transaction->cashierSourceLabel() }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ $transaction->channel === 'self_order' ? 'Self order' : 'POS' }}</p>
                             </td>
                             <td class="px-5 py-4 whitespace-nowrap text-center">
                                 <span class="rounded-full px-2 py-0.5 text-theme-xs font-medium bg-gray-50 text-gray-600 dark:bg-gray-500/15 dark:text-gray-400">
@@ -157,6 +255,11 @@
                                                 Cetak Struk
                                             </button>
                                         @endcan
+                                        @can('transactions.whatsapp.send')
+                                            <button type="button" wire:click="sendReceiptWhatsApp({{ (int) $transaction->id }})" class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]">
+                                                Kirim WA
+                                            </button>
+                                        @endcan
                                         @can('transactions.details')
                                             <a href="{{ route('transactions.show', $transaction) }}" wire:navigate class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]">
                                                 Detail
@@ -168,7 +271,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $canActions ? 10 : 9 }}" class="px-5 py-10">
+                            <td colspan="{{ $canActions ? 8 : 7 }}" class="px-5 py-10">
                                 <p class="text-center text-sm text-gray-500 dark:text-gray-400">Transaksi tidak ditemukan.</p>
                             </td>
                         </tr>

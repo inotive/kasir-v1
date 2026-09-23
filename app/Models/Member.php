@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
+use Database\Factories\MemberFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Member extends Model
 {
-    /** @use HasFactory<\Database\Factories\MemberFactory> */
+    /** @use HasFactory<MemberFactory> */
     use BelongsToTenant, HasFactory;
 
     protected $fillable = [
@@ -30,6 +31,14 @@ class Member extends Model
         'member_type' => 'string',
         'points' => 'integer',
     ];
+
+    public function displayLabel(bool $showPhone = false): string
+    {
+        $phone = trim((string) $this->phone);
+        $identifier = $showPhone && $phone !== '' ? $phone : 'Member #'.$this->id;
+
+        return $this->name.' ('.$identifier.')';
+    }
 
     public function transactions(): HasMany
     {

@@ -1181,25 +1181,6 @@
                                 @php
                                     $user = auth()->user();
                                     $canViewMemberPii = (bool) (($user && method_exists($user, 'can')) ? $user->can('members.pii.view') : false);
-                                    $maskPhone = function ($phone): string {
-                                        $phone = trim((string) ($phone ?? ''));
-                                        if ($phone === '') {
-                                            return '';
-                                        }
-                                        $len = strlen($phone);
-                                        if ($len <= 4) {
-                                            return str_repeat('*', max(0, $len - 1)).substr($phone, -1);
-                                        }
-
-                                        return substr($phone, 0, 2).str_repeat('*', max(0, $len - 6)).substr($phone, -4);
-                                    };
-                                    $memberPhoneLabel = function ($member) use ($canViewMemberPii, $maskPhone): string {
-                                        if (! $member?->phone) {
-                                            return 'belum ada nomor';
-                                        }
-
-                                        return $canViewMemberPii ? (string) $member->phone : $maskPhone($member->phone);
-                                    };
                                 @endphp
 
                                 @if ($checkoutStep === 1)
@@ -1212,7 +1193,7 @@
                                                     <select wire:model.live="memberId" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" @disabled($cartLocked)>
                                                         <option value="">-</option>
                                                         @foreach ($this->members as $m)
-                                                            <option value="{{ (int) $m->id }}">{{ $m->name }} ({{ $memberPhoneLabel($m) }})</option>
+                                                            <option value="{{ (int) $m->id }}">{{ $m->displayLabel($canViewMemberPii) }}</option>
                                                         @endforeach
                                                     </select>
                                                 @else
@@ -1377,7 +1358,7 @@
                                                                 <div class="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800" x-show="phoneDropdownOpen" x-cloak>
                                                                     @foreach ($this->memberSearchResults as $m)
                                                                         <button type="button" wire:click="selectSearchedMember({{ (int) $m->id }})" @click="phoneDropdownOpen = false" class="block w-full px-4 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-50 dark:text-white/90 dark:hover:bg-white/[0.05]">
-                                                                            {{ $memberPhoneLabel($m) }} - {{ $m->name }}
+                                                                            {{ $m->displayLabel($canViewMemberPii) }}
                                                                         </button>
                                                                     @endforeach
                                                                 </div>
@@ -1560,6 +1541,20 @@
                                     </div>
                                 @endif
                             </div>
+
+                            @if ($waEnabledForTenant)
+                                <div class="border-t border-gray-200 px-6 py-3 dark:border-gray-800">
+                                    <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                        <input type="checkbox" wire:model="sendReceiptWhatsApp"
+                                            @disabled(! $this->resolveCustomerPhoneForWa())
+                                            class="h-4 w-4 rounded border-gray-300 text-brand-600" />
+                                        Kirim struk ke WhatsApp pelanggan
+                                    </label>
+                                    @unless ($this->resolveCustomerPhoneForWa())
+                                        <p class="mt-1 text-xs text-gray-400">Isi nomor telepon pelanggan untuk mengaktifkan.</p>
+                                    @endunless
+                                </div>
+                            @endif
 
                             <div class="border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
                                 <div class="flex flex-col-reverse items-stretch justify-between gap-2 sm:flex-row sm:items-center">

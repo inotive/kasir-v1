@@ -52,3 +52,10 @@ Artisan::command('member-regions:import {districtGeojson} {--regency-geojson=} {
 })->purpose('Import wilayah provinsi/kabupaten/kecamatan dari GeoJSON');
 
 Schedule::command('vouchers:alert')->dailyAt('08:00');
+
+// No Supervisor process manager on this deployment — instead of a persistently-running
+// `queue:work`, run it every minute via cron/scheduler with --stop-when-empty so it drains
+// whatever's queued (WA receipts, email receipts) and exits, rather than looping forever.
+Schedule::command('queue:work --stop-when-empty --max-time=55 --tries=3')
+    ->everyMinute()
+    ->withoutOverlapping();

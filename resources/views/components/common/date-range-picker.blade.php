@@ -50,7 +50,7 @@
             const defaultTo = @js($to) ?? this.toValue;
             const defaultDates = (defaultFrom && defaultTo)
                 ? [new Date(defaultFrom), new Date(defaultTo)]
-                : [new Date(), new Date()];
+                : (this.preset === 'custom' ? [] : [new Date(), new Date()]);
 
             this.fp = flatpickr(this.$refs.datepicker, {
                 mode: 'range',

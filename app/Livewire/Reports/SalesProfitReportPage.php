@@ -526,7 +526,20 @@ class SalesProfitReportPage extends Component
             ->get()
             ->keyBy('day');
 
-        return $rows->map(function ($row) use ($cogsRows, $otherRows, $feeRows, $expenseRows, $netByDay) {
+        // Costs can occur on days with no sales; include those dates so the
+        // daily breakdown reconciles with the report's period totals.
+        $rows = $rows->keyBy('day');
+        $days = $rows->keys()
+            ->merge($cogsRows->keys())
+            ->merge($otherRows->keys())
+            ->merge($feeRows->keys())
+            ->merge($expenseRows->keys())
+            ->unique()
+            ->sortDesc()
+            ->values();
+
+        return $days->map(function ($day) use ($rows, $cogsRows, $otherRows, $feeRows, $expenseRows, $netByDay) {
+            $row = $rows->get($day) ?? (object) ['day' => $day, 'tx_count' => 0, 'items_qty' => 0];
             $revenue = (float) ($netByDay[(string) $row->day] ?? 0);
             $cogsSales = (float) (($cogsRows[(string) $row->day]->cogs_inventory ?? 0));
             $other = $otherRows[(string) $row->day] ?? null;

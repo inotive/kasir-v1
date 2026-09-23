@@ -589,12 +589,16 @@
                     }
                 },
                 stepOrderedJobs() {
-                    const kasir = this.kasirJob();
-                    const others = this.selectedJobs().filter((j) => !kasir || j.printer_source_id !== kasir.printer_source_id);
-                    return kasir ? [kasir, ...others] : others;
+                    const jobs = this.selectedJobs();
+                    const kasirId = this.kasirSource()?.id;
+                    const kasirIdx = kasirId ? jobs.findIndex((j) => j.printer_source_id === kasirId) : -1;
+                    if (kasirIdx <= 0) return jobs;
+
+                    const kasirJob = jobs[kasirIdx];
+                    return [kasirJob, ...jobs.slice(0, kasirIdx), ...jobs.slice(kasirIdx + 1)];
                 },
                 canPrintStepThrough() {
-                    return !this.busy && !this.stepActive && this.blockingIssues().length === 0;
+                    return !this.busy && !this.stepActive && this.selectedSourceIds().length >= 2 && this.blockingIssues().length === 0;
                 },
                 currentStepJob() {
                     return this.stepJobs[this.stepIndex] || null;
@@ -643,6 +647,7 @@
                 },
                 async printStepThrough() {
                     if (this.busy || this.stepActive) return;
+                    if (this.selectedSourceIds().length < 2) return;
                     this.revalidate();
                     if (this.blockingIssues().length > 0) return;
 

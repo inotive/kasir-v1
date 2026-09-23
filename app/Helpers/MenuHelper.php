@@ -150,6 +150,11 @@ class MenuHelper
                         'path' => self::path('reports.member-performance'),
                         'permission' => 'reports.performance',
                     ],
+                    [
+                        'name' => 'Penjualan per Item',
+                        'path' => self::path('reports.item-sales'),
+                        'permission' => 'reports.sales',
+                    ],
                 ],
             ],
             /*[

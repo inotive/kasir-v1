@@ -196,7 +196,12 @@ if (!window.ReceiptTemplates) {
             
             const manualDiscount = parseInt(data.order?.manual_discount_amount || 0);
             if (manualDiscount > 0) {
-                receipt += this.formatRow("Diskon Manual", "", this.formatRibuan(-Math.abs(manualDiscount))) + "\n";
+                const manualType = data.order?.manual_discount_type;
+                const manualValue = parseInt(data.order?.manual_discount_value || 0);
+                const manualLabel = (manualType === 'percent' && manualValue > 0)
+                    ? `Diskon ${manualValue}%`
+                    : 'Diskon';
+                receipt += this.formatRow(manualLabel, "", this.formatRibuan(-Math.abs(manualDiscount))) + "\n";
             }
             
             const pointDiscount = parseInt(data.order?.point_discount_amount || 0);

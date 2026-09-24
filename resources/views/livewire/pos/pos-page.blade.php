@@ -1350,6 +1350,27 @@
                                                 @endif
                                                 @if ($customerType === 'member')
                                                     <div class="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                                                        <div class="relative" x-data="{ nameDropdownOpen: false }" @click.outside="nameDropdownOpen = false">
+                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
+                                                            <div class="relative">
+                                                                <input wire:model.live.debounce.300ms="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 pr-9" placeholder="Cari atau ketik nama" @disabled($cartLocked) autocomplete="off" @focus="nameDropdownOpen = true" />
+                                                                @if ($memberId !== null && ! $cartLocked)
+                                                                    <button type="button" wire:click="clearSelectedMember" @click="nameDropdownOpen = false" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">
+                                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                    </button>
+                                                                @endif
+                                                            </div>
+                                                            <x-common.input-error for="customerName" />
+                                                            @if (! $cartLocked && $memberId === null && $this->memberNameSearchResults->isNotEmpty())
+                                                                <div class="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800" x-show="nameDropdownOpen" x-cloak>
+                                                                    @foreach ($this->memberNameSearchResults as $m)
+                                                                        <button type="button" wire:click="selectSearchedMember({{ (int) $m->id }})" @click="nameDropdownOpen = false" class="block w-full px-4 py-2.5 text-left text-sm font-medium text-gray-800 hover:bg-gray-50 dark:text-white/90 dark:hover:bg-white/[0.05]">
+                                                                            {{ $m->displayLabel($canViewMemberPii) }}
+                                                                        </button>
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
+                                                        </div>
                                                         <div class="relative" x-data="{ phoneDropdownOpen: false }" @click.outside="phoneDropdownOpen = false">
                                                             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nomor HP</label>
                                                             <input wire:model.live.debounce.300ms="customerPhone" type="text" aria-invalid="{{ $errors->has('customerPhone') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerPhone') ? 'error-customerPhone' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="08xxxx" @disabled($cartLocked) autocomplete="off" @focus="phoneDropdownOpen = true" />
@@ -1363,18 +1384,6 @@
                                                                     @endforeach
                                                                 </div>
                                                             @endif
-                                                        </div>
-                                                        <div>
-                                                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nama</label>
-                                                            <div class="relative">
-                                                                <input wire:model.live="customerName" type="text" aria-invalid="{{ $errors->has('customerName') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('customerName') ? 'error-customerName' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 pr-9" placeholder="Terisi otomatis" @disabled($cartLocked || $memberId !== null) />
-                                                                @if ($memberId !== null && ! $cartLocked)
-                                                                    <button type="button" wire:click="clearSelectedMember" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">
-                                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                                                    </button>
-                                                                @endif
-                                                            </div>
-                                                            <x-common.input-error for="customerName" />
                                                         </div>
                                                         <div class="flex items-end">
                                                             @can('members.create')

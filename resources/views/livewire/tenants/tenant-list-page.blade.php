@@ -18,11 +18,12 @@
             </div>
             <a href="{{ route('tenants.create') }}" wire:navigate
             class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white transition">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Buat Tenant
-        </a>
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Buat Tenant
+            </a>
+        </div>
     </div>
 
     <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -67,6 +68,13 @@
                                 <div class="inline-flex items-center gap-2">
                                     <a href="{{ route('tenants.edit', $t) }}" wire:navigate
                                         class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]">Ubah</a>
+                                    @if ($t->is_active)
+                                        <button
+                                            type="button"
+                                            x-on:click.prevent="$dispatch('confirm', { message: 'Hapus tenant ini? Tenant akan dinonaktifkan dan slug-nya dibebaskan untuk dipakai tenant baru.', method: 'toggleActive', args: [{{ $t->id }}] })"
+                                            class="shadow-theme-xs text-error-600 border-error-300 hover:bg-error-50 dark:border-error-800 dark:hover:bg-error-500/10 inline-flex items-center justify-center rounded-lg border bg-white px-3 py-2 text-xs font-medium dark:bg-gray-800"
+                                        >Hapus</button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -81,5 +89,5 @@
         </div>
     </div>
 
-    <x-common.confirm-modal confirm-label="Ya, ubah" />
+    <x-common.confirm-modal confirm-label="Ya, lanjutkan" />
 </div>

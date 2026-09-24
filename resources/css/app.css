@@ -411,6 +411,10 @@
   @apply !p-0 !pl-6;
 }
 
+#chartFour .apexcharts-pie-label {
+  @apply !fill-white !font-semibold;
+}
+
 .jvm-container {
   @apply !bg-gray-50 dark:!bg-gray-900;
 }

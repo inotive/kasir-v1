@@ -266,6 +266,8 @@ class PosPrintPayloadService
                 'rounding_amount' => (int) ($trx->rounding_amount ?? 0),
                 'total' => (int) $trx->total,
                 'voucher_discount_amount' => (int) ($trx->voucher_discount_amount ?? 0),
+                'manual_discount_type' => $trx->manual_discount_type,
+                'manual_discount_value' => $trx->manual_discount_value === null ? null : (int) $trx->manual_discount_value,
                 'manual_discount_amount' => (int) ($trx->manual_discount_amount ?? 0),
                 'point_discount_amount' => (int) ($trx->point_discount_amount ?? 0),
                 'points_redeemed' => (int) ($trx->points_redeemed ?? 0),

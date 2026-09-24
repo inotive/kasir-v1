@@ -158,7 +158,7 @@
 
                     @if($transaction->manual_discount_amount > 0)
                     <div class="flex items-center justify-between text-success-600">
-                        <p class="receipt-muted">Diskon Manual</p>
+                        <p class="receipt-muted">Diskon{{ $transaction->manual_discount_type === 'percent' && (int) $transaction->manual_discount_value > 0 ? ' '.(int) $transaction->manual_discount_value.'%' : '' }}</p>
                         <p class="font-semibold">-Rp{{ number_format($transaction->manual_discount_amount, 0, ',', '.') }}</p>
                     </div>
                     @endif

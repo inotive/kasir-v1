@@ -310,7 +310,29 @@ class PosPage extends Component
         if ($this->cartLocked) {
             $this->customerName = (string) ($this->lockedCustomerName ?? $this->customerName);
             $this->dispatch('toast', type: 'error', message: 'Pesanan self-order tidak dapat mengubah data pelanggan.');
+
+            return;
         }
+
+        if ($this->memberId !== null) {
+            $currentName = trim((string) $this->customerName);
+            $selectedName = '';
+            if ($this->memberId) {
+                $m = Member::query()->find($this->memberId);
+                $selectedName = $m ? (string) $m->name : '';
+            }
+            if ($currentName === '' || $currentName !== $selectedName) {
+                $this->memberId = null;
+                $this->memberPoints = 0;
+                $this->redeemPoints = false;
+                $this->pointsToRedeem = 0;
+                if ($this->customerType === 'member') {
+                    $this->customerPhone = null;
+                }
+            }
+        }
+
+        $this->recalculateTotals();
     }
 
     public bool $createMemberInlineOpen = false;
@@ -346,6 +368,29 @@ class PosPage extends Component
         }
 
         return $query->orderBy('name')->limit(5)->get(['id', 'name', 'phone']);
+    }
+
+    public function getMemberNameSearchResultsProperty()
+    {
+        if ($this->customerType !== 'member') {
+            return collect();
+        }
+
+        if (! auth()->user()?->can('members.view')) {
+            return collect();
+        }
+
+        $term = trim((string) ($this->customerName ?? ''));
+
+        if ($term === '') {
+            return Member::query()->orderBy('name')->limit(20)->get(['id', 'name', 'phone']);
+        }
+
+        if (mb_strlen($term) < 2) {
+            return collect();
+        }
+
+        return Member::query()->where('name', 'like', '%'.$term.'%')->orderBy('name')->limit(5)->get(['id', 'name', 'phone']);
     }
 
     public function selectSearchedMember(int $memberId): void

@@ -4,7 +4,19 @@
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white/90">Kelola Tenant</h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">Daftar semua bisnis yang terdaftar di sistem</p>
         </div>
-        <a href="{{ route('tenants.create') }}" wire:navigate
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <select wire:model.live="statusFilter" class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2.5 pr-11 text-sm text-gray-700 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                    <option value="active">Aktif</option>
+                    <option value="all">Semua</option>
+                </select>
+                <span class="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-gray-700 dark:text-gray-400">
+                    <svg class="stroke-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4.79175 7.396L10.0001 12.6043L15.2084 7.396" stroke="" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </span>
+            </div>
+            <a href="{{ route('tenants.create') }}" wire:navigate
             class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white transition">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />

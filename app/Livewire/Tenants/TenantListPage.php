@@ -14,6 +14,13 @@ class TenantListPage extends Component
 
     public string $title = 'Kelola Tenant';
 
+    public string $statusFilter = 'active';
+
+    public function updatingStatusFilter(): void
+    {
+        $this->resetPage();
+    }
+
     public function mount(): void
     {
         $this->authorize('dashboard.access');
@@ -32,7 +39,18 @@ class TenantListPage extends Component
         }
 
         $tenant = Tenant::findOrFail($tenantId);
-        $tenant->update(['is_active' => ! $tenant->is_active]);
+
+        if ($tenant->is_active) {
+            $suffix = '-deactivated-'.now()->timestamp;
+
+            $tenant->update([
+                'is_active' => false,
+                'slug' => $tenant->slug.$suffix,
+                'domain' => $tenant->domain ? $tenant->domain.$suffix : $tenant->domain,
+            ]);
+        } else {
+            $tenant->update(['is_active' => true]);
+        }
 
         session()->flash('toast', 'Status tenant berhasil diperbarui.');
     }
@@ -40,6 +58,7 @@ class TenantListPage extends Component
     public function render(): View
     {
         $tenants = Tenant::query()
+            ->when($this->statusFilter === 'active', fn ($q) => $q->where('is_active', true))
             ->withCount(['users' => fn ($q) => $q->withoutGlobalScope(TenantScope::class)])
             ->with(['users' => fn ($q) => $q->withoutGlobalScope(TenantScope::class)->where('role', 'owner')])
             ->orderBy('name')

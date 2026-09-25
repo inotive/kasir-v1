@@ -116,8 +116,8 @@ Route::get('/members/verify/{token}', [MemberController::class, 'verify'])
 
 Route::get('/manifest.webmanifest', function () {
     $manifest = [
-        'name' => config('app.name').' Admin',
-        'short_name' => 'Admin',
+        'name' => 'HIPPI Kasir',
+        'short_name' => 'HIPPI Kasir',
         'start_url' => '/admin/signin',
         'scope' => '/admin/',
         'display' => 'standalone',

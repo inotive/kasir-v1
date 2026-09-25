@@ -14,6 +14,8 @@ class AdminPwaInstallabilityTest extends TestCase
         $this->get(route('admin.manifest'))
             ->assertOk()
             ->assertHeader('Content-Type', 'application/manifest+json')
+            ->assertJsonPath('name', 'HIPPI Kasir')
+            ->assertJsonPath('short_name', 'HIPPI Kasir')
             ->assertJsonPath('display', 'standalone');
     }
 

@@ -9,7 +9,7 @@ return [
         'qris_midtrans' => 'QRIS Midtrans',
         'cash' => 'Tunai',
         'transfer_bank' => 'Transfer Bank',
-        'pending' => 'Belum diatur',
+        'pending' => 'Belum dibayar',
     ],
 
     'payment_status' => [

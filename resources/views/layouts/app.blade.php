@@ -12,7 +12,14 @@
     </script>
 
     <title>{{ $title ?? 'Dashboard' }} | HIPPI KASIR</title>
-    <link rel="icon" href="{{ asset('images/logo/pngtree-pools-icon-logo-design-activity-beach-summer-vector-png-image_12898075.png') }}" type="image/png">
+    @php
+        $faviconSetting = \App\Models\Setting::current();
+        $faviconPath = trim((string) ($faviconSetting->store_logo ?? ''));
+        $faviconUrl = $faviconPath !== ''
+            ? \Illuminate\Support\Facades\Storage::disk('public')->url($faviconPath).'?v='.$faviconSetting->updated_at?->timestamp
+            : asset('images/logo/pngtree-pools-icon-logo-design-activity-beach-summer-vector-png-image_12898075.png');
+    @endphp
+    <link rel="icon" href="{{ $faviconUrl }}" type="image/png">
     <link rel="manifest" href="{{ route('admin.manifest') }}">
 
     <!-- Scripts -->

@@ -28,6 +28,8 @@ class SettingsPage extends Component
 
     public ?string $address = null;
 
+    public ?string $receipt_notes = null;
+
     public bool $payment_gateway_enabled = true;
 
     public float $tax_rate = 0;
@@ -117,6 +119,7 @@ class SettingsPage extends Component
         $this->store_name = $setting->store_name;
         $this->phone = $setting->phone;
         $this->address = $setting->address;
+        $this->receipt_notes = $setting->receipt_notes;
         $this->payment_gateway_enabled = (bool) $setting->payment_gateway_enabled;
         $this->tax_rate = (float) $setting->tax_rate;
         $this->store_logo_path = $setting->store_logo;
@@ -339,6 +342,7 @@ class SettingsPage extends Component
             'store_name' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:2000'],
+            'receipt_notes' => ['nullable', 'string', 'max:500'],
             'payment_gateway_enabled' => ['boolean'],
             'tax_rate' => ['numeric', 'min:0', 'max:100'],
             'store_logo_upload' => ['nullable', 'image', 'max:2048'],
@@ -377,6 +381,7 @@ class SettingsPage extends Component
         $setting->store_name = $validated['store_name'] !== null && trim($validated['store_name']) !== '' ? trim($validated['store_name']) : null;
         $setting->phone = $validated['phone'] !== null && trim($validated['phone']) !== '' ? trim($validated['phone']) : null;
         $setting->address = $validated['address'] !== null && trim($validated['address']) !== '' ? trim($validated['address']) : null;
+        $setting->receipt_notes = $validated['receipt_notes'] !== null && trim($validated['receipt_notes']) !== '' ? trim($validated['receipt_notes']) : null;
         $setting->payment_gateway_enabled = (bool) $validated['payment_gateway_enabled'];
         $setting->tax_rate = (float) $validated['tax_rate'];
         $setting->midtrans_merchant_id = $validated['midtrans_merchant_id'] !== null && trim($validated['midtrans_merchant_id']) !== '' ? trim($validated['midtrans_merchant_id']) : null;

@@ -139,6 +139,12 @@
                                         <textarea wire:model.live="address" rows="3" aria-invalid="{{ $errors->has('address') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('address') ? 'error-address' : '' }}" {{ $canEditStore ? '' : 'disabled' }} class="dark:bg-dark-900 shadow-theme-xs w-full rounded-lg border border-gray-300 bg-transparent px-4 py-3 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"></textarea>
                                         <x-common.input-error for="address" />
                                     </div>
+                                    <div class="sm:col-span-2">
+                                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Catatan Tambahan di Struk</label>
+                                        <textarea wire:model.live="receipt_notes" rows="3" maxlength="500" aria-invalid="{{ $errors->has('receipt_notes') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('receipt_notes') ? 'error-receipt_notes' : '' }}" {{ $canEditStore ? '' : 'disabled' }} placeholder="Contoh: WiFi: NamaWifi / Password: 12345678" class="dark:bg-dark-900 shadow-theme-xs w-full rounded-lg border border-gray-300 bg-transparent px-4 py-3 text-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"></textarea>
+                                        <!-- <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Dicetak di struk, di bawah total dan sebelum ucapan terima kasih. Misalnya untuk info SSID &amp; password WiFi.</p> -->
+                                        <x-common.input-error for="receipt_notes" />
+                                    </div>
                                 </div>
 
                                     <div class="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">

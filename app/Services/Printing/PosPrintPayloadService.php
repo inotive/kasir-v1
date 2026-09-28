@@ -253,6 +253,7 @@ class PosPrintPayloadService
                 'phone' => (string) ($setting->phone ?? '-'),
                 'logo_url' => $logoUrl,
                 'cashier_receipt_print_logo' => (bool) ($setting->cashier_receipt_print_logo ?? true),
+                'receipt_notes' => (string) ($setting->receipt_notes ?? ''),
             ],
             'order' => [
                 'code' => (string) $trx->code,

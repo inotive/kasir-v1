@@ -245,6 +245,21 @@ if (!window.ReceiptTemplates) {
             
             receipt += "================================\n";
             receipt += COMMANDS.ALIGN_CENTER;
+
+            const receiptNotes = (data.store?.receipt_notes || '').toString().trim();
+            if (receiptNotes !== '') {
+                const notesWidth = 32;
+                receiptNotes.split('\n').forEach(line => {
+                    line = line.trim();
+                    if (line === '') return;
+                    const wrapped = line.match(new RegExp('.{1,' + notesWidth + '}', 'g')) || [];
+                    wrapped.forEach(part => {
+                        receipt += part + "\n";
+                    });
+                });
+                receipt += "--------------------------------\n";
+            }
+
             receipt += "Terima Kasih!\n";
             receipt += "Silahkan datang kembali\n";
             receipt += "\n\n";

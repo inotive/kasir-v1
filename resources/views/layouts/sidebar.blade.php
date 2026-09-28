@@ -72,7 +72,7 @@
     'xl:justify-center' :
     'justify-start'">
     
-    <a href="{{ route('dashboard', [], false) }}" class="no-underline">
+    <div class="select-none">
         <!-- Teks Logo Full saat Sidebar Terbuka -->
         <span x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
             class="text-xl font-bold tracking-tight text-black dark:text-white px-4">
@@ -84,7 +84,7 @@
             class="text-xl font-bold text-black dark:text-white">
             C
         </span>
-    </a>
+    </div>
 
     <div x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" class="ml-auto"></div>
 </div>

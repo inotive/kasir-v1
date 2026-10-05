@@ -309,6 +309,10 @@
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: #344054;
 }
+/* Suspend layout transitions while the xl breakpoint flips (e.g. orientation change) */
+.sidebar-resizing * {
+  transition: none !important;
+}
 @layer utilities {
   /* For Remove Date Icon */
   input[type='date']::-webkit-inner-spin-button,

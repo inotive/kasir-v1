@@ -146,16 +146,16 @@
 <body
     x-data="{ 'loaded': true}"
     x-init="$store.sidebar.isExpanded = window.innerWidth >= 1280;
-    const checkMobile = () => {
-        if (window.innerWidth < 1280) {
-            $store.sidebar.setMobileOpen(false);
-            $store.sidebar.isExpanded = false;
-        } else {
-            $store.sidebar.isMobileOpen = false;
-            $store.sidebar.isExpanded = true;
-        }
-    };
-    window.addEventListener('resize', checkMobile);">
+    // Use matchMedia instead of resize: mobile browsers fire resize when the address bar
+    // shows/hides during touch scroll, which would close the mobile sidebar.
+    window.matchMedia('(min-width: 1280px)').addEventListener('change', (e) => {
+        const root = document.documentElement;
+        root.classList.add('sidebar-resizing');
+        $store.sidebar.isMobileOpen = false;
+        $store.sidebar.isExpanded = e.matches;
+        clearTimeout(window.__sidebarResizeTimer);
+        window.__sidebarResizeTimer = setTimeout(() => root.classList.remove('sidebar-resizing'), 400);
+    });">
 
     {{-- preloader --}}
     <x-common.preloader />

@@ -49,6 +49,7 @@ class RolePermissionSeeder extends Seeder
             'transactions.refund',
             'transactions.void.approve',
             'transactions.refund.approve',
+            'transactions.payment_method.change',
             'transactions.whatsapp.send',
 
             // Members
@@ -224,6 +225,7 @@ class RolePermissionSeeder extends Seeder
             'transactions.details',
             'transactions.pii.view',
             'transactions.print',
+            'transactions.refund',
             'transactions.whatsapp.send',
             'settings.printers.devices',
             'members.view',

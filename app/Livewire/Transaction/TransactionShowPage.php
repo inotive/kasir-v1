@@ -322,13 +322,11 @@ class TransactionShowPage extends Component
 
     public function openPaymentMethodModal(): void
     {
-        $this->authorize('transactions.refund');
+        $this->authorize('transactions.payment_method.change');
 
         $this->correctionReason = '';
         $this->newPaymentMethod = '';
         $this->newCashReceived = '';
-        $this->approverUserId = null;
-        $this->approverPin = '';
         $this->resetValidation();
         $this->paymentMethodModalOpen = true;
     }
@@ -347,15 +345,13 @@ class TransactionShowPage extends Component
             'correctionReason' => ['required', 'string', 'max:255'],
             'newPaymentMethod' => ['required', 'string', 'in:'.implode(',', array_keys($this->changeablePaymentMethods()))],
             'newCashReceived' => ['nullable', 'string', 'max:20'],
-            'approverUserId' => ['nullable', 'integer'],
-            'approverPin' => ['nullable', 'string', 'max:20'],
         ]);
 
         $success = false;
 
         DB::transaction(function () use ($validated, &$success): void {
             $actor = auth()->user();
-            if (! $actor || ! $actor->can('transactions.refund')) {
+            if (! $actor || ! $actor->can('transactions.payment_method.change')) {
                 $this->addError('newPaymentMethod', 'Anda tidak punya akses untuk mengubah metode bayar.');
 
                 return;
@@ -393,14 +389,6 @@ class TransactionShowPage extends Component
                 $cashChange = $cashReceived - $total;
             }
 
-            // Selalu butuh PIN: koreksi metode bayar memengaruhi rekap tunai vs non-tunai.
-            $resolved = $this->resolveApprover($validated['approverUserId'] ?? null, (string) ($validated['approverPin'] ?? ''), 'transactions.refund.approve');
-            if (! $resolved['ok']) {
-                $this->addError((string) $resolved['error_field'], (string) $resolved['error_message']);
-
-                return;
-            }
-
             $previousCashReceived = $transaction->cash_received;
             $previousCashChange = $transaction->cash_change;
 
@@ -422,9 +410,6 @@ class TransactionShowPage extends Component
                     'previous_cash_change' => $previousCashChange,
                     'new_cash_received' => $cashReceived,
                     'new_cash_change' => $cashChange,
-                    'approval_required' => true,
-                    'approved_by_user_id' => (int) $resolved['id'],
-                    'approval_mode' => (string) $resolved['mode'],
                 ],
             ]);
 
@@ -822,16 +807,6 @@ class TransactionShowPage extends Component
                 ->get(['id', 'name', 'manager_pin_set_at']);
         }
 
-        $paymentMethodApprovers = collect();
-        if ($this->paymentMethodModalOpen && $user && $user->can('transactions.refund')) {
-            $paymentMethodApprovers = User::query()
-                ->permission('transactions.refund.approve')
-                ->where('is_active', true)
-                ->whereNotNull('manager_pin')
-                ->orderBy('name')
-                ->get(['id', 'name', 'manager_pin_set_at']);
-        }
-
         $approvedIds = collect($transaction->events)
             ->map(fn ($e) => $e->meta['approved_by_user_id'] ?? null)
             ->filter()
@@ -851,7 +826,6 @@ class TransactionShowPage extends Component
             'voidApprovers' => $voidApprovers,
             'refundApprovers' => $refundApprovers,
             'deleteApprovers' => $deleteApprovers,
-            'paymentMethodApprovers' => $paymentMethodApprovers,
             'canChangePaymentMethod' => $this->canChangePaymentMethod($transaction),
             'changeablePaymentMethods' => $this->changeablePaymentMethods(),
             'approvedBy' => $approvedBy,

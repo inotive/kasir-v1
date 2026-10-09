@@ -69,6 +69,7 @@ return [
         'transactions.refund' => 'Refund Transaksi',
         'transactions.void.approve' => 'Setujui Void Transaksi',
         'transactions.refund.approve' => 'Setujui Refund Transaksi',
+        'transactions.payment_method.change' => 'Ubah Metode Bayar Transaksi',
         'transactions.whatsapp.send' => 'Kirim/Kirim Ulang Struk via WhatsApp',
 
         'members.view' => 'Lihat Member',

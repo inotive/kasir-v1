@@ -42,7 +42,7 @@ function makePaymentMethodTransaction(array $attributes = []): Transaction
 
 beforeEach(function () {
     $this->seed(RolePermissionSeeder::class);
-    $this->actor = makePaymentMethodActor(['transactions.details', 'transactions.refund', 'transactions.refund.approve']);
+    $this->actor = makePaymentMethodActor(['transactions.details', 'transactions.payment_method.change']);
 });
 
 test('cash to qris clears cash received and change and logs event', function () {
@@ -55,7 +55,6 @@ test('cash to qris clears cash received and change and logs event', function () 
         ->set('newPaymentMethod', 'qris')
         ->assertSee('sudah dikembalikan ke pelanggan')
         ->set('correctionReason', 'Pelanggan ganti bayar QRIS')
-        ->set('approverPin', '1234')
         ->call('changePaymentMethod')
         ->assertHasNoErrors();
 
@@ -70,7 +69,7 @@ test('cash to qris clears cash received and change and logs event', function () 
     expect($event->meta['previous_payment_method'])->toBe('cash');
     expect($event->meta['new_payment_method'])->toBe('qris');
     expect((int) $event->meta['previous_cash_change'])->toBe(40000);
-    expect((int) $event->meta['approved_by_user_id'])->toBe((int) $this->actor->id);
+    expect((int) $event->actor_user_id)->toBe((int) $this->actor->id);
 });
 
 test('qris to cash requires enough cash and computes change', function () {
@@ -81,7 +80,6 @@ test('qris to cash requires enough cash and computes change', function () {
         ->set('newPaymentMethod', 'cash')
         ->set('newCashReceived', '5.000')
         ->set('correctionReason', 'Salah pilih metode')
-        ->set('approverPin', '1234')
         ->call('changePaymentMethod')
         ->assertHasErrors(['newCashReceived']);
 
@@ -98,19 +96,6 @@ test('qris to cash requires enough cash and computes change', function () {
     expect((int) $transaction->cash_change)->toBe(10000);
 });
 
-test('change requires approver PIN', function () {
-    $transaction = makePaymentMethodTransaction();
-
-    Livewire::actingAs($this->actor)
-        ->test(TransactionShowPage::class, ['transaction' => $transaction])
-        ->set('newPaymentMethod', 'transfer_bank')
-        ->set('correctionReason', 'Tanpa PIN')
-        ->call('changePaymentMethod')
-        ->assertHasErrors(['approverPin']);
-
-    expect($transaction->fresh()->payment_method)->toBe('cash');
-});
-
 test('change is rejected for gateway, refunded, and pending transactions', function (array $attributes) {
     $transaction = makePaymentMethodTransaction($attributes);
     $previousMethod = (string) $transaction->payment_method;
@@ -119,7 +104,6 @@ test('change is rejected for gateway, refunded, and pending transactions', funct
         ->test(TransactionShowPage::class, ['transaction' => $transaction])
         ->set('newPaymentMethod', $previousMethod === 'transfer_bank' ? 'qris' : 'transfer_bank')
         ->set('correctionReason', 'Coba ubah')
-        ->set('approverPin', '1234')
         ->call('changePaymentMethod')
         ->assertHasErrors(['newPaymentMethod']);
 
@@ -131,17 +115,31 @@ test('change is rejected for gateway, refunded, and pending transactions', funct
     'pending' => [['payment_status' => 'pending']],
 ]);
 
-test('change requires transactions.refund permission', function () {
-    $user = makePaymentMethodActor(['transactions.details']);
+test('change requires transactions.payment_method.change permission', function () {
+    $user = makePaymentMethodActor(['transactions.details', 'transactions.refund', 'transactions.refund.approve']);
     $transaction = makePaymentMethodTransaction();
 
     Livewire::actingAs($user)
         ->test(TransactionShowPage::class, ['transaction' => $transaction])
+        ->assertDontSee('Ubah Metode Bayar')
         ->set('newPaymentMethod', 'qris')
         ->set('correctionReason', 'Coba ubah')
-        ->set('approverPin', '1234')
         ->call('changePaymentMethod')
         ->assertHasErrors(['newPaymentMethod']);
 
     expect($transaction->fresh()->payment_method)->toBe('cash');
+});
+
+test('owner and admin can change payment method but cashier cannot, and cashier can refund', function () {
+    $owner = User::factory()->create();
+    $owner->assignRole('owner');
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+    $cashier = User::factory()->create();
+    $cashier->assignRole('cashier');
+
+    expect($owner->can('transactions.payment_method.change'))->toBeTrue();
+    expect($admin->can('transactions.payment_method.change'))->toBeTrue();
+    expect($cashier->can('transactions.payment_method.change'))->toBeFalse();
+    expect($cashier->can('transactions.refund'))->toBeTrue();
 });

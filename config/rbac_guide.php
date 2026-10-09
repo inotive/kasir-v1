@@ -429,6 +429,30 @@ return [
                 'transactions.details',
             ],
         ],
+        'transactions.payment_method.change' => [
+            'summary' => 'Mengizinkan mengubah metode bayar transaksi yang sudah dibayar tanpa approval PIN.',
+            'grants' => [
+                'Mengubah metode bayar (Tunai, QRIS, Transfer Bank) di detail transaksi paid',
+                'Mengisi ulang uang diterima dan kembalian saat diubah ke Tunai',
+            ],
+            'not_grants' => [
+                'Mengubah transaksi QRIS Midtrans/gateway, pending, atau yang sudah direfund',
+                'Mengubah total atau item transaksi',
+            ],
+            'affected_areas' => [
+                'Transaksi (detail)',
+                'Rekap per metode bayar (Tunai vs QRIS)',
+            ],
+            'risk' => [
+                'sensitive_data' => false,
+                'financial_risk' => true,
+                'system_risk' => false,
+            ],
+            'related_permissions' => [
+                'transactions.view',
+                'transactions.details',
+            ],
+        ],
         'transactions.void.approve' => [
             'summary' => 'Mengizinkan menyetujui (approve) tindakan void transaksi.',
             'grants' => [

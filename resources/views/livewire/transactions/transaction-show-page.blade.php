@@ -65,7 +65,7 @@
                 @endcan
             @endif
             @if ($canChangePaymentMethod)
-                @can('transactions.refund')
+                @can('transactions.payment_method.change')
                     <button type="button" wire:click="openPaymentMethodModal" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">
                         Ubah Metode Bayar
                     </button>
@@ -752,28 +752,6 @@
                         <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Alasan</label>
                         <input wire:model.live="correctionReason" type="text" aria-invalid="{{ $errors->has('correctionReason') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('correctionReason') ? 'error-correctionReason' : '' }}" class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
                         <x-common.input-error for="correctionReason" />
-                    </div>
-                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
-                        <p class="text-sm font-semibold text-gray-800 dark:text-white/90">Approval (PIN)</p>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Ubah metode bayar selalu memerlukan approval (PIN) refund.</p>
-                        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Approver (Opsional)</label>
-                                <select wire:model.live="approverUserId" aria-invalid="{{ $errors->has('approverUserId') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('approverUserId') ? 'error-approverUserId' : '' }}" class="shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                                    <option value="">Auto (pakai PIN)</option>
-                                    @foreach ($paymentMethodApprovers as $approver)
-                                        <option value="{{ (int) $approver->id }}">{{ $approver->name }}</option>
-                                    @endforeach
-                                </select>
-                                <x-common.input-error for="approverUserId" />
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Kosongkan jika ingin sistem otomatis mendeteksi approver dari PIN.</p>
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">PIN</label>
-                                <input wire:model.live="approverPin" type="password" inputmode="numeric" aria-invalid="{{ $errors->has('approverPin') ? 'true' : 'false' }}" aria-describedby="{{ $errors->has('approverPin') ? 'error-approverPin' : '' }}" class="dark:bg-dark-900 shadow-theme-xs h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" placeholder="PIN approver" />
-                                <x-common.input-error for="approverPin" />
-                            </div>
-                        </div>
                     </div>
                     <div class="flex items-center justify-end gap-2">
                         <button type="button" wire:click="closePaymentMethodModal" class="shadow-theme-xs inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.03]">

@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Transaction\TransactionShowPage;
+use App\Livewire\Transaction\TransactionsPage;
 use App\Models\Transaction;
 use App\Models\TransactionEvent;
 use App\Models\User;
@@ -51,10 +52,10 @@ test('cash to qris clears cash received and change and logs event', function () 
     Livewire::actingAs($this->actor)
         ->test(TransactionShowPage::class, ['transaction' => $transaction])
         ->assertSee('Ubah Metode Bayar')
-        ->call('openPaymentMethodModal')
+        ->call('openPaymentMethodModal', $transaction->id)
         ->set('newPaymentMethod', 'qris')
         ->assertSee('sudah dikembalikan ke pelanggan')
-        ->set('correctionReason', 'Pelanggan ganti bayar QRIS')
+        ->set('paymentMethodReason', 'Pelanggan ganti bayar QRIS')
         ->call('changePaymentMethod')
         ->assertHasNoErrors();
 
@@ -77,9 +78,10 @@ test('qris to cash requires enough cash and computes change', function () {
 
     $component = Livewire::actingAs($this->actor)
         ->test(TransactionShowPage::class, ['transaction' => $transaction])
+        ->set('paymentMethodTransactionId', $transaction->id)
         ->set('newPaymentMethod', 'cash')
         ->set('newCashReceived', '5.000')
-        ->set('correctionReason', 'Salah pilih metode')
+        ->set('paymentMethodReason', 'Salah pilih metode')
         ->call('changePaymentMethod')
         ->assertHasErrors(['newCashReceived']);
 
@@ -102,8 +104,9 @@ test('change is rejected for gateway, refunded, and pending transactions', funct
 
     Livewire::actingAs($this->actor)
         ->test(TransactionShowPage::class, ['transaction' => $transaction])
+        ->set('paymentMethodTransactionId', $transaction->id)
         ->set('newPaymentMethod', $previousMethod === 'transfer_bank' ? 'qris' : 'transfer_bank')
-        ->set('correctionReason', 'Coba ubah')
+        ->set('paymentMethodReason', 'Coba ubah')
         ->call('changePaymentMethod')
         ->assertHasErrors(['newPaymentMethod']);
 
@@ -122,8 +125,9 @@ test('change requires transactions.payment_method.change permission', function (
     Livewire::actingAs($user)
         ->test(TransactionShowPage::class, ['transaction' => $transaction])
         ->assertDontSee('Ubah Metode Bayar')
+        ->set('paymentMethodTransactionId', $transaction->id)
         ->set('newPaymentMethod', 'qris')
-        ->set('correctionReason', 'Coba ubah')
+        ->set('paymentMethodReason', 'Coba ubah')
         ->call('changePaymentMethod')
         ->assertHasErrors(['newPaymentMethod']);
 
@@ -142,4 +146,28 @@ test('owner and admin can change payment method but cashier cannot, and cashier 
     expect($admin->can('transactions.payment_method.change'))->toBeTrue();
     expect($cashier->can('transactions.payment_method.change'))->toBeFalse();
     expect($cashier->can('transactions.refund'))->toBeTrue();
+});
+
+test('list page shows change button only for eligible transactions and can change method', function () {
+    $eligible = makePaymentMethodTransaction(['code' => 'TRX-PM-OK']);
+    makePaymentMethodTransaction(['code' => 'TRX-PM-MID', 'payment_method' => 'qris_midtrans', 'cash_received' => null, 'cash_change' => null]);
+
+    $this->actor->givePermissionTo('transactions.view');
+
+    Livewire::actingAs($this->actor)
+        ->test(TransactionsPage::class)
+        ->assertSeeHtml('wire:click="openPaymentMethodModal('.$eligible->id.')"')
+        ->call('openPaymentMethodModal', $eligible->id)
+        ->assertSee('TRX-PM-OK · Saat ini: Tunai')
+        ->set('newPaymentMethod', 'transfer_bank')
+        ->set('paymentMethodReason', 'Bayar via transfer')
+        ->call('changePaymentMethod')
+        ->assertHasNoErrors()
+        ->assertSet('paymentMethodModalOpen', false);
+
+    expect($eligible->fresh()->payment_method)->toBe('transfer_bank');
+    expect(substr_count(
+        Livewire::actingAs($this->actor)->test(TransactionsPage::class)->html(),
+        'openPaymentMethodModal('
+    ))->toBe(1);
 });

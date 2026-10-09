@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Transaction;
 
+use App\Livewire\Concerns\ChangesTransactionPaymentMethod;
 use App\Models\Member;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
@@ -19,6 +20,7 @@ use Livewire\WithPagination;
 
 class TransactionsPage extends Component
 {
+    use ChangesTransactionPaymentMethod;
     use WithPagination;
 
     public string $title = 'Riwayat Transaksi';
@@ -440,6 +442,13 @@ class TransactionsPage extends Component
             'stats' => $stats,
             'paymentMethodStats' => $paymentMethodStats,
             'filteredMemberLabels' => $filteredMemberLabels,
+            'changeablePaymentMethods' => $this->changeablePaymentMethods(),
+            'paymentMethodChangeableIds' => $transactions->getCollection()
+                ->filter(fn (Transaction $transaction) => $this->canChangePaymentMethod($transaction))
+                ->map(fn (Transaction $transaction) => (int) $transaction->id)
+                ->values()
+                ->all(),
+            'paymentMethodTransaction' => $this->paymentMethodModalTransaction(),
         ])->layout('layouts.app', ['title' => $this->title]);
     }
 }

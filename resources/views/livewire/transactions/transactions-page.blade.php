@@ -162,7 +162,8 @@
         </div>
 
         @php
-            $canActions = (bool) (auth()->user()?->can('transactions.details') || auth()->user()?->can('transactions.print') || auth()->user()?->can('transactions.whatsapp.send'));
+            $canChangeMethod = (bool) auth()->user()?->can('transactions.payment_method.change');
+            $canActions = (bool) (auth()->user()?->can('transactions.details') || auth()->user()?->can('transactions.print') || auth()->user()?->can('transactions.whatsapp.send') || $canChangeMethod);
         @endphp
         <div class="custom-scrollbar overflow-x-auto">
             <table class="w-full table-auto">
@@ -260,6 +261,11 @@
                                                 Kirim WA
                                             </button>
                                         @endcan
+                                        @if ($canChangeMethod && in_array((int) $transaction->id, $paymentMethodChangeableIds, true))
+                                            <button type="button" wire:click="openPaymentMethodModal({{ (int) $transaction->id }})" class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]">
+                                                Ubah Metode
+                                            </button>
+                                        @endif
                                         @can('transactions.details')
                                             <a href="{{ route('transactions.show', $transaction) }}" wire:navigate class="shadow-theme-xs inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]">
                                                 Detail
@@ -284,4 +290,6 @@
             {{ $transactions->links('livewire.pagination.admin') }}
         </div>
     </div>
+
+    @include('livewire.transactions.partials.payment-method-modal')
 </div>

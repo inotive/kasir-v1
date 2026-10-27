@@ -2167,6 +2167,7 @@ class PosPage extends Component
         $this->voucherCodeInput = $this->lockedVoucherCode;
         $this->paymentMethod = match ((string) ($trx->payment_method ?? '')) {
             'qris', 'qris_midtrans' => 'qris',
+            'transfer_bank' => 'transfer_bank',
             default => 'cash',
         };
         $this->paymentFeeAmount = (int) ($trx->payment_fee_amount ?? 0);

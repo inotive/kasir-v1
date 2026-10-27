@@ -318,7 +318,7 @@ class TransactionsPage extends Component
     }
 
     /**
-     * Cash vs QRIS breakdown for the currently filtered date range/search, ignoring
+     * Cash vs QRIS vs transfer breakdown for the currently filtered date range/search, ignoring
      * the payment-method dropdown filter so both cards stay visible regardless of it.
      */
     protected function paymentMethodStats(): array
@@ -326,6 +326,7 @@ class TransactionsPage extends Component
         return [
             'cash' => $this->revenueForPaymentMethods(['cash']),
             'qris' => $this->revenueForPaymentMethods(['qris', 'qris_midtrans']),
+            'transfer_bank' => $this->revenueForPaymentMethods(['transfer_bank']),
         ];
     }
 

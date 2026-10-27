@@ -100,6 +100,8 @@ class SettingsPage extends Component
 
     public string $whatsapp_status = 'not_configured';
 
+    public bool $whatsapp_has_session = false;
+
     public ?string $whatsapp_linked_phone = null;
 
     public ?string $whatsapp_last_error = null;
@@ -688,6 +690,7 @@ class SettingsPage extends Component
         $this->whatsapp_is_enabled = (bool) $waSetting->is_enabled;
         $this->whatsapp_send_on_checkout_default = (bool) $waSetting->send_on_checkout_default;
         $this->whatsapp_status = (string) $waSetting->status;
+        $this->whatsapp_has_session = (bool) $waSetting->openwa_session_id;
         $this->whatsapp_linked_phone = $waSetting->linked_phone;
         $this->whatsapp_last_error = $waSetting->last_error;
     }

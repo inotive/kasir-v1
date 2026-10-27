@@ -777,7 +777,7 @@
                                         Putuskan
                                     </button>
                                 @endif
-                                @if ($whatsapp_status !== 'not_configured')
+                                @if ($whatsapp_status !== 'not_configured' || $whatsapp_has_session)
                                     <button type="button"
                                         x-on:click.prevent="$dispatch('confirm', { message: 'Reset sesi WhatsApp? Anda perlu scan QR ulang.', method: 'forgetWhatsappSession', args: [] })"
                                         class="inline-flex h-10 items-center justify-center rounded-lg border border-error-200 bg-error-50 px-4 text-sm font-semibold text-error-600 hover:bg-error-100 dark:border-error-500/20 dark:bg-error-500/10 dark:text-error-500">

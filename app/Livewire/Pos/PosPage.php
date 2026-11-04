@@ -245,7 +245,114 @@ class PosPage extends Component
             $this->refreshProductCards();
         }
 
+        $this->restoreDraft();
+
         $this->recalculateTotals();
+    }
+
+    private const DRAFT_SESSION_KEY = 'pos.draft';
+
+    /**
+     * Simpan draft keranjang ke session di setiap request agar tidak hilang saat refresh
+     * atau pindah menu. Keranjang self-order (locked) tidak disimpan karena datanya ada di DB.
+     */
+    public function dehydrate(): void
+    {
+        if (count($this->cartItems) === 0 || $this->cartLocked) {
+            session()->forget(self::DRAFT_SESSION_KEY);
+
+            return;
+        }
+
+        session()->put(self::DRAFT_SESSION_KEY, [
+            'cartItems' => $this->cartItems,
+            'orderType' => $this->orderType,
+            'selectedTableId' => $this->selectedTableId,
+            'memberId' => $this->memberId,
+            'customerType' => $this->customerType,
+            'customerName' => $this->customerName,
+            'customerPhone' => $this->customerPhone,
+            'voucherCodeInput' => $this->voucherCodeInput,
+            'redeemPoints' => $this->redeemPoints,
+            'applyManualDiscount' => $this->applyManualDiscount,
+            'manualDiscountType' => $this->manualDiscountType,
+            'manualDiscountValue' => $this->manualDiscountValue,
+            'manualDiscountNote' => $this->manualDiscountNote,
+            'paymentMethod' => $this->paymentMethod,
+            'editingTransactionId' => $this->editingTransactionId,
+        ]);
+    }
+
+    private function restoreDraft(): void
+    {
+        $draft = session(self::DRAFT_SESSION_KEY);
+        if (! is_array($draft) || ! is_array($draft['cartItems'] ?? null) || $draft['cartItems'] === []) {
+            return;
+        }
+
+        // Kasir sengaja membuka POS untuk meja/tipe tertentu: mulai order baru.
+        if (request()->query('type') !== null || request()->query('table') !== null) {
+            return;
+        }
+
+        $variantIds = collect($draft['cartItems'])->pluck('variant_id')->filter()->map(fn ($id) => (int) $id)->unique()->all();
+        $validVariantIds = ProductVariant::query()
+            ->whereIn('id', $variantIds)
+            ->whereHas('product', fn (Builder $q) => $q->where('is_available', true))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $items = [];
+        $dropped = 0;
+        foreach ($draft['cartItems'] as $item) {
+            $variantId = (int) ($item['variant_id'] ?? 0);
+            if (! is_array($item) || ($variantId !== 0 && ! in_array($variantId, $validVariantIds, true))) {
+                $dropped++;
+
+                continue;
+            }
+            $items[] = $item;
+        }
+
+        if ($items === []) {
+            session()->forget(self::DRAFT_SESSION_KEY);
+            if ($dropped > 0) {
+                $this->dispatch('toast', type: 'warning', message: 'Keranjang sebelumnya dibatalkan karena produk sudah tidak tersedia.');
+            }
+
+            return;
+        }
+
+        $editingId = isset($draft['editingTransactionId']) ? (int) $draft['editingTransactionId'] : null;
+        if ($editingId !== null && ! Transaction::query()->whereKey($editingId)->where('payment_status', 'pending')->exists()) {
+            $editingId = null;
+        }
+
+        $this->cartItems = $items;
+        $this->editingTransactionId = $editingId;
+        $this->orderType = (string) ($draft['orderType'] ?? $this->orderType);
+        $this->selectedTableId = isset($draft['selectedTableId']) ? (int) $draft['selectedTableId'] : null;
+        $member = isset($draft['memberId']) && auth()->user()?->can('members.view')
+            ? Member::query()->find((int) $draft['memberId'])
+            : null;
+        $this->memberId = $member?->id === null ? null : (int) $member->id;
+        $this->memberPoints = $member ? (int) $member->points : 0;
+        $this->customerType = (string) ($draft['customerType'] ?? $this->customerType);
+        $this->customerName = (string) ($draft['customerName'] ?? $this->customerName);
+        $this->customerPhone = $draft['customerPhone'] ?? null;
+        $this->voucherCodeInput = $draft['voucherCodeInput'] ?? null;
+        $this->redeemPoints = $member !== null && (bool) ($draft['redeemPoints'] ?? false);
+        $this->applyManualDiscount = (bool) ($draft['applyManualDiscount'] ?? false);
+        $this->manualDiscountType = $draft['manualDiscountType'] ?? null;
+        $this->manualDiscountValue = $draft['manualDiscountValue'] ?? null;
+        $this->manualDiscountNote = $draft['manualDiscountNote'] ?? null;
+        $this->paymentMethod = (string) ($draft['paymentMethod'] ?? $this->paymentMethod);
+
+        $this->dispatch('toast', type: 'info', message: 'Keranjang sebelumnya dipulihkan.');
+        if ($dropped > 0) {
+            $this->dispatch('toast', type: 'warning', message: $dropped.' item dihapus karena produk sudah tidak tersedia.');
+        }
     }
 
     public function updatedSearch(): void
@@ -1996,6 +2103,7 @@ class PosPage extends Component
     public function clearCart(): void
     {
         $this->cartItems = [];
+        session()->forget(self::DRAFT_SESSION_KEY);
         $this->editingTransactionId = null;
         $this->cartLocked = false;
         $this->lockedVoucherCode = null;

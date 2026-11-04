@@ -1,4 +1,4 @@
-<div class="relative" x-data="{
+<div class="static xl:relative" x-data="{
     dropdownOpen: false,
     issues: [],
     reconnectingRoles: {},
@@ -95,7 +95,7 @@
         x-transition:leave="transition ease-in duration-75"
         x-transition:leave-start="transform opacity-100 scale-100"
         x-transition:leave-end="transform opacity-0 scale-95"
-        class="absolute -right-[240px] mt-[17px] flex max-h-[520px] w-[350px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark sm:w-[361px] lg:right-0"
+        class="absolute left-3 top-full mt-2 flex max-h-[520px] w-[calc(100vw-1.5rem)] max-w-[361px] flex-col xl:left-auto xl:right-0 xl:top-auto xl:mt-[17px] xl:w-[361px] rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark"
         style="display: none;"
     >
         <div class="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-800">
